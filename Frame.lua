@@ -105,7 +105,7 @@ function addon.frame:SetTooltip()
 
     GameTooltip:SetOwner(self, 'ANCHOR_NONE')
     GameTooltip:SetPoint('BOTTOMRIGHT', 'UIParent', 'BOTTOMRIGHT', -CONTAINER_OFFSET_X - 13, CONTAINER_OFFSET_Y)
-    GameTooltip:AddLine("OSINT")
+    GameTooltip:AddLine(addonName)
 
     for _, value in pairs(OSINT.csv) do
         GameTooltip:AddDoubleLine(value)

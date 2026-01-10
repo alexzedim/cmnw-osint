@@ -1,6 +1,6 @@
-# OSINT_addon
+# cmnw-osint
 
-Addon for World of Warcraft which collect all characters names across your realm via combat log and current target.
+cmnw-osint is a World of Warcraft addon that collects all character names across your realm via combat log events and your current target.
 
 All parsed data is stored in `data` variable at this **%PATH%**:
 

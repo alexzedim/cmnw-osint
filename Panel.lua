@@ -105,3 +105,21 @@ function addon.panel:SetFrameVersion()
     self.version:SetPoint('BOTTOMLEFT', self.title, 'BOTTOMRIGHT', 5, 1)
     self.version:SetText(GetAddOnMetadata(addonName, 'Version'))
 end
+
+function CMNW_OSINT_AddonCompartmentFunc(button, menu)
+    local function openConfig()
+        if not addon or not addon.panel then return end
+
+        InterfaceOptionsFrame_OpenToCategory(addon.panel)
+        InterfaceOptionsFrame_OpenToCategory(addon.panel)
+    end
+
+    if menu then
+        local info = UIDropDownMenu_CreateInfo()
+        info.text = GetAddOnInfo(addonName)
+        info.func = openConfig
+        UIDropDownMenu_AddButton(info, 1)
+    else
+        openConfig()
+    end
+end
