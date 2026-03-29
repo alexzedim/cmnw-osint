@@ -1,0 +1,9 @@
+## Interface: 120001
+## Title: CMNW-OSINT
+## Notes: Player intelligence collection on target
+## Author: AlexZ
+## Version: 1.0.0
+## SavedVariables: CMNWOSINT_DB
+## IconTexture: Interface\Icons\INV_Misc_Spyglass_01
+
+Core.lua
