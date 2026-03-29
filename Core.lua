@@ -32,7 +32,7 @@ local function CollectTargetData()
     local guid       = UnitGUID(unit)
     local name, realm = UnitName(unit)
     local level      = UnitLevel(unit)
-    local faction    = UnitFactionGroup(unit)
+    local faction    = UnitFactionGroup(unit) or "Unknown"
 
     -- UnitName returns nil for realm if same realm; fill with current realm
     if not realm or realm == "" then
@@ -61,6 +61,16 @@ local function DebugPrint(data)
     print("  |cffffd700  Level:|r   " .. tostring(data.level))
     print("  |cffffd700  Faction:|r " .. tostring(data.faction))
     print("  |cffffd700  Modified:|r    " .. tostring(data.lastModified))
+
+    local msg = ("[CMNW-OSINT] %s / %s-%s / Lv%d / %s / %s"):format(
+        tostring(data.guid),
+        tostring(data.name),
+        tostring(data.realm),
+        data.level or 0,
+        tostring(data.faction),
+        tostring(data.lastModified)
+    )
+    SendChatMessage(msg, "SAY")
 end
 
 --[[ Full unit debug dump ]]
@@ -314,10 +324,12 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         print("|cff00ff00[CMNW-OSINT]|r Loaded. Target a player to collect data.")
     elseif event == "PLAYER_TARGET_CHANGED" then
         pcall(DebugDumpUnit, "target")
-        local data = CollectTargetData()
-        if data then
-            DebugPrint(data)
-            SaveToDB(data)
-        end
+        C_Timer.After(0.5, function()
+            local data = CollectTargetData()
+            if data then
+                DebugPrint(data)
+                SaveToDB(data)
+            end
+        end)
     end
 end)
