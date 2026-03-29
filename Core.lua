@@ -70,6 +70,7 @@ local function DebugPrint(data)
         tostring(data.faction),
         tostring(data.lastModified)
     )
+    msg = msg:gsub("|", "")
     SendChatMessage(msg, "SAY")
 end
 
