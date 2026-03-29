@@ -63,6 +63,170 @@ local function DebugPrint(data)
     print("  |cffffd700  Modified:|r    " .. tostring(data.lastModified))
 end
 
+--[[ Full unit debug dump ]]
+local function DebugDumpUnit(unit)
+    if not UnitExists(unit) then return end
+
+    local RED   = "|cffff5555"
+    local GREEN = "|cff55ff55"
+    local YELLOW = "|cffffff55"
+    local CYAN  = "|cff55ffff"
+    local WHITE = "|cffffffff"
+    local RST   = "|r"
+
+    print("\n" .. GREEN .. "========== UNIT DUMP: " .. unit .. " ==========" .. RST)
+
+    -- Identity
+    print(CYAN .. "--- Identity ---" .. RST)
+    print("  UnitExists:     " .. tostring(UnitExists(unit)))
+    print("  UnitIsPlayer:   " .. tostring(UnitIsPlayer(unit)))
+    print("  UnitGUID:       " .. tostring(UnitGUID(unit)))
+    local name, realm = UnitName(unit)
+    print("  UnitName:       " .. tostring(name) .. " |cff888888(realm: " .. tostring(realm) .. ")" .. RST)
+    print("  UnitIsSameServer: " .. tostring(UnitIsSameServer(unit)))
+    print("  UnitIsOffline:    " .. tostring(UnitIsOffline(unit)))
+    print("  UnitIsDead:       " .. tostring(UnitIsDead(unit)))
+    print("  UnitIsGhost:      " .. tostring(UnitIsGhost(unit)))
+
+    -- Classification / Relations
+    print(CYAN .. "--- Classification ---" .. RST)
+    print("  UnitCanAttack:    " .. tostring(UnitCanAttack(unit, "player")))
+    print("  UnitCanCooperate: " .. tostring(UnitCanCooperate(unit, "player")))
+    print("  UnitIsEnemy:      " .. tostring(UnitIsEnemy(unit, "player")))
+    print("  UnitIsFriend:     " .. tostring(UnitIsFriend(unit, "player")))
+    print("  UnitIsPVP:        " .. tostring(UnitIsPVP(unit)))
+    print("  UnitIsPVPFlagged: " .. tostring(UnitIsPVPFlagged(unit)))
+    print("  UnitIsInGroup:    " .. tostring(UnitIsInGroup(unit)))
+    print("  UnitIsInRaid:     " .. tostring(UnitIsInRaid(unit)))
+    print("  UnitIsUnit:       " .. tostring(UnitIsUnit(unit, "player")))
+
+    -- Character Info
+    print(CYAN .. "--- Character Info ---" .. RST)
+    print("  UnitLevel:           " .. tostring(UnitLevel(unit)))
+    print("  UnitEffectiveLevel:  " .. tostring(UnitEffectiveLevel(unit)))
+    print("  UnitPlayer:          " .. tostring(UnitPlayerControlled(unit)))
+    print("  UnitPlayerOrPet:     " .. tostring(UnitPlayerOrPetInGroup(unit)))
+    print("  UnitClassification:  " .. tostring(UnitClassification(unit)))
+    local enClass, classFile, classIndex = UnitClass(unit)
+    print("  UnitClass:           " .. tostring(enClass) .. " |cff888888(file: " .. tostring(classFile) .. ", index: " .. tostring(classIndex) .. ")" .. RST)
+    local enRace, raceFile, raceIndex = UnitRace(unit)
+    print("  UnitRace:            " .. tostring(enRace) .. " |cff888888(file: " .. tostring(raceFile) .. ", index: " .. tostring(raceIndex) .. ")" .. RST)
+    local sex = UnitSex(unit)
+    local sexStr = sex == 1 and "Male" or sex == 2 and "Female" or sex == 3 and "Neuter" or tostring(sex)
+    print("  UnitSex:             " .. tostring(sexStr) .. " (" .. tostring(sex) .. ")")
+    print("  UnitFactionGroup:   " .. tostring(UnitFactionGroup(unit)))
+    local reaction = UnitReaction(unit, "player")
+    local reactionStr = reaction and ("%d |cff888888(%s)"):format(reaction, 
+        reaction == 1 and "Hated" or reaction == 2 and "Hostile" or reaction == 3 and "Unfriendly" or
+        reaction == 4 and "Neutral" or reaction == 5 and "Friendly" or reaction == 6 and "Honored" or
+        reaction == 7 and "Revered" or reaction == 8 and "Exalted" or "Unknown") or "nil"
+    print("  UnitReaction:        " .. reactionStr)
+
+    -- Health / Power
+    print(CYAN .. "--- Resources ---" .. RST)
+    print("  UnitHealth:           " .. tostring(UnitHealth(unit)))
+    print("  UnitHealthMax:        " .. tostring(UnitHealthMax(unit)))
+    local powerType = UnitPowerType(unit)
+    print("  UnitPowerType:        " .. tostring(powerType))
+    print("  UnitPower:            " .. tostring(UnitPower(unit)))
+    print("  UnitPowerMax:         " .. tostring(UnitPowerMax(unit)))
+    local manaType = UnitManaType(unit)
+    print("  UnitManaType:         " .. tostring(manaType))
+
+    -- Combat / Status
+    print(CYAN .. "--- Combat / Status ---" .. RST)
+    print("  UnitAffectingCombat:  " .. tostring(UnitAffectingCombat(unit)))
+    print("  UnitCharmed:          " .. tostring(UnitCharmed(unit)))
+    print("  UnitIsCharmed:        " .. tostring(UnitIsCharmed(unit)))
+    print("  UnitIsPossessed:      " .. tostring(UnitIsPossessed(unit)))
+    print("  UnitOnTaxi:           " .. tostring(UnitOnTaxi(unit)))
+    print("  UnitInVehicle:        " .. tostring(UnitInVehicle(unit)))
+    print("  UnitUsingVehicle:     " .. tostring(UnitUsingVehicle(unit)))
+    print("  UnitHasVehicleUI:     " .. tostring(UnitHasVehicleUI(unit)))
+
+    -- Guild / Social
+    print(CYAN .. "--- Guild / Social ---" .. RST)
+    local guildName, guildRankName, guildRankIndex, guildRealm = GetGuildInfo(unit)
+    print("  GetGuildInfo:         " .. tostring(guildName) .. 
+        " |cff888888(rank: " .. tostring(guildRankName) .. 
+        ", index: " .. tostring(guildRankIndex) .. 
+        ", realm: " .. tostring(guildRealm) .. ")" .. RST)
+
+    -- Auras (buffs - first 8)
+    print(CYAN .. "--- Buffs (first 8) ---" .. RST)
+    for i = 1, 8 do
+        local name, icon, count, debuffType, duration, expires, caster, isStealable = UnitAura(unit, i, "HELPFUL")
+        if name then
+            print(("  Buff[%d]: %s |cff888888x%d |ctype:%s |cdur:%.1f |cexp:%.1f |ccaster:%s |csteal:%s"):format(
+                i, tostring(name), count or 0, tostring(debuffType), duration or 0, expires or 0,
+                tostring(caster and caster ~= "player" and caster or "player"), tostring(isStealable)
+            ))
+        end
+    end
+
+    -- Casting
+    print(CYAN .. "--- Casting ---" .. RST)
+    local castName, castName2, castText, castTexture, castStartTime, castEndTime, castIsTrade, castNotInterruptible, castSpellId = UnitCastingInfo(unit)
+    if castName then
+        print("  Casting:       " .. tostring(castName) .. 
+            " |cff888888(id: " .. tostring(castSpellId) .. 
+            ", start: " .. tostring(castStartTime) .. 
+            ", end: " .. tostring(castEndTime) ..
+            ", trade: " .. tostring(castIsTrade) ..
+            ", interrupt: " .. tostring(not castNotInterruptible) .. ")" .. RST)
+    else
+        print("  Casting:       none")
+    end
+    local chName, chName2, chText, chTexture, chStartTime, chEndTime, chIsTrade, chNotInterruptible, chSpellId = UnitChannelInfo(unit)
+    if chName then
+        print("  Channeling:    " .. tostring(chName) ..
+            " |cff888888(id: " .. tostring(chSpellId) ..
+            ", start: " .. tostring(chStartTime) ..
+            ", end: " .. tostring(chEndTime) ..
+            ", interrupt: " .. tostring(not chNotInterruptible) .. ")" .. RST)
+    else
+        print("  Channeling:   none")
+    end
+
+    -- Special flags
+    print(CYAN .. "--- Special Flags ---" .. RST)
+    print("  UnitIsBattlePet:         " .. tostring(UnitIsBattlePet(unit)))
+    print("  UnitIsBattlePetCompanion: " .. tostring(UnitIsBattlePetCompanion(unit)))
+    print("  UnitIsWildBattlePet:      " .. tostring(UnitIsWildBattlePet(unit)))
+    print("  UnitIsTapDenied:          " .. tostring(UnitIsTapDenied(unit)))
+    print("  UnitCantBeMisdirected:    " .. tostring(UnitCantBeMisdirected(unit)))
+    print("  UnitIsDND:                " .. tostring(UnitIsDND(unit)))
+    print("  UnitIsAFK:                " .. tostring(UnitIsAFK(unit)))
+
+    -- Faction (extra)
+    print(CYAN .. "--- Faction ---" .. RST)
+    local fac1, localizedFac1 = UnitFactionGroup(unit)
+    local fac2, localizedFac2 = UnitFactionGroup("player")
+    print("  Target Faction:     " .. tostring(fac1) .. " |cff888888(" .. tostring(localizedFac1) .. ")" .. RST)
+    print("  Player Faction:    " .. tostring(fac2) .. " |cff888888(" .. tostring(localizedFac2) .. ")" .. RST)
+    print("  Same Faction:     " .. tostring(fac1 == fac2))
+
+    -- Target/Threat (if in combat)
+    print(CYAN .. "--- Threat ---" .. RST)
+    local threat = UnitThreatSituation(unit)
+    local threatStr = threat == 0 and "None" or threat == 1 and "Low" or threat == 2 and "Medium" or threat == 3 and "High" or tostring(threat)
+    print("  UnitThreatSituation: " .. threatStr)
+
+    -- GUID parse (parse the GUID for extra info)
+    local guid = UnitGUID(unit)
+    if guid then
+        print(CYAN .. "--- GUID Parsed ---" .. RST)
+        local guidType, guidServerID, guidDbID, guidGuidLo, guidGuidHi = strsplit("-", guid or "")
+        print("  Raw parts:     type=" .. tostring(guidType) .. 
+            " serverID=" .. tostring(guidServerID) .. 
+            " dbID=" .. tostring(guidDbID) ..
+            " guidLo=" .. tostring(guidGuidLo) ..
+            " guidHi=" .. tostring(guidGuidHi))
+    end
+
+    print(GREEN .. "==========================================" .. RST .. "\n")
+end
+
 -- ============================================
 -- DATABASE
 -- ============================================
@@ -151,6 +315,7 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         OnInitialize()
         print("|cff00ff00[CMNW-OSINT]|r Loaded. Target a player to collect data.")
     elseif event == "PLAYER_TARGET_CHANGED" then
+        DebugDumpUnit("target")
         local data = CollectTargetData()
         if data then
             DebugPrint(data)
