@@ -387,6 +387,7 @@ local EventFrame = CreateFrame("Frame")
 EventFrame:RegisterEvent("ADDON_LOADED")
 EventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
 EventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
+EventFrame:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 
 EventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" and (...) == addonName then
@@ -420,6 +421,14 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
                     SaveToDB(data)
                 end
             end
+        end
+    elseif event == "NAME_PLATE_UNIT_ADDED" then
+        local plateUnit = ...
+        local data = CollectUnitData(plateUnit)
+        if data then
+            data.createdBy = "OSINT-NAMEPLATE-GET"
+            data.updatedBy = "OSINT-NAMEPLATE-INDEX"
+            SaveToDB(data)
         end
     end
 end)
