@@ -123,7 +123,7 @@ local function SayLastCaptured()
     SendChatMessage("[CMNW-OSINT] LastModified: " .. tostring(d.lastModified), "SAY")
 end
 
---[[ Full unit debug dump ]]
+--[[ Full unit debug dump (disabled)
 local function DebugDumpUnit(unit)
     if not UnitExists(unit) then return end
 
@@ -193,6 +193,7 @@ local function DebugDumpUnit(unit)
 
     print(GREEN .. "==========================================" .. RST .. "\n")
 end
+--]]
 
 -- ============================================
 -- DATABASE
@@ -357,10 +358,6 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         OnInitialize()
         print("|cff00ff00[CMNW-OSINT]|r Loaded. Target a player to collect data.")
     elseif event == "PLAYER_TARGET_CHANGED" then
-        local ok, err = pcall(DebugDumpUnit, "target")
-        if not ok then
-            print("|cffff5555[CMNW-OSINT] DebugDumpUnit error:|r " .. tostring(err))
-        end
         local data = CollectTargetData()
         if data then
             DebugPrint(data)
