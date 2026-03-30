@@ -260,8 +260,8 @@ local UPDATED_TAGS = {
     ["OSINT-NAMEPLATE-INDEX"] = "NPL",
 }
 
-local COLUMN_WIDTHS = { 25, 45, 90, 82, 50, 32, 34, 32, 66, 32, 66, 59, 43, 90, 38, 66, 50, 38, 97 }
-local COLUMN_ALIGNS = { "CENTER", "CENTER", "LEFT", "LEFT", "CENTER", "CENTER", "CENTER", "CENTER", "LEFT", "CENTER", "LEFT", "LEFT", "CENTER", "LEFT", "CENTER", "LEFT", "CENTER", "CENTER", "LEFT" }
+local COLUMN_WIDTHS = { 25, 45, 90, 82, 50, 32, 34, 32, 66, 32, 66, 43, 90, 38, 66, 38, 97 }
+local COLUMN_ALIGNS = { "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER", "CENTER" }
 local ROW_HEIGHT    = 18
 local MAX_ROWS      = 50
 local visibleRows   = 18
@@ -325,12 +325,10 @@ function CMNWOSINT_UpdateTable()
                 entry.raceName      or "-",
                 entry.class         and tostring(entry.class) or "-",
                 entry.className     or "-",
-                entry.classFile     or "-",
                 entry.gender        or "-",
                 entry.guild         or "-",
                 entry.guildRank     and tostring(entry.guildRank) or "-",
                 entry.guildRankName or "-",
-                entry.status        or "-",
                 UPDATED_TAGS[entry.updatedBy] or entry.updatedBy or "-",
                 entry.lastModified  and entry.lastModified:sub(1, 10) or "-",
             }
@@ -495,13 +493,17 @@ local function CreateMainFrame()
     tinsert(UISpecialFrames, "CMNWOSINT_MainFrame")
 
     local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
-    title:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -14)
+    title:SetPoint("TOP", f, "TOP", 0, -14)
+    title:SetWidth(400)
+    title:SetJustifyH("CENTER")
     title:SetText("CMNW-OSINT")
 
     CreateElvUICloseButton(f)
 
     counterText = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
-    counterText:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+    counterText:SetPoint("TOP", f, "TOP", 0, -36)
+    counterText:SetWidth(400)
+    counterText:SetJustifyH("CENTER")
 
     local exportBtn = CreateElvUIButton(f, "Export JSON", 90, 22)
     exportBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -28, -30)
@@ -520,7 +522,7 @@ local function CreateMainFrame()
     end)
 
     local headerY = -60
-    local headers = { "#", "ID", "Name", "Realm", "RealmID", "Lvl", "Fac", "Race", "RaceNm", "Class", "ClassNm", "ClassFile", "Gender", "Guild", "GRank", "GTitle", "Status", "UpdBy", "Modified" }
+    local headers = { "#", "ID", "Name", "Realm", "RealmId", "Level", "Faction", "Race", "RaceName", "Class", "ClassName", "Gender", "Guild", "GuildRank", "GuildRankName", "UpdatedBy", "LastModified" }
     local totalW  = 0
     for _, w in ipairs(COLUMN_WIDTHS) do totalW = totalW + w end
 
