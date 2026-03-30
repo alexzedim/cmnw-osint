@@ -18,12 +18,31 @@ local function OnInitialize()
 end
 
 -- ============================================
+-- HELPERS
+-- ============================================
+
+local function ParseGuidID(guid)
+    if not guid then return nil end
+    local parts = { strsplit("-", guid) }
+    if parts[3] then
+        return tonumber(parts[3], 16)
+    end
+    return nil
+end
+
+local function ParseNameRealm(fullName)
+    if not fullName then return nil, nil end
+    local parts = { strsplit("-", fullName) }
+    local name  = parts[1]
+    local realm = parts[2] or GetRealmName()
+    return name, realm
+end
+
+-- ============================================
 -- DATA COLLECTION
 -- ============================================
 
-local function CollectTargetData()
-    local unit = "target"
-
+local function CollectUnitData(unit)
     if not UnitExists(unit) or not UnitIsPlayer(unit) then
         return nil
     end
@@ -45,14 +64,7 @@ local function CollectTargetData()
     local gender = sex == 1 and "Male" or sex == 2 and "Female" or sex == 3 and "Neuter" or "Unknown"
 
     local guildName, guildRankName, guildRankIndex = GetGuildInfo(unit)
-
-    local id = nil
-    if guid then
-        local parts = { strsplit("-", guid) }
-        if parts[3] then
-            id = tonumber(parts[3], 16)
-        end
-    end
+    local id = ParseGuidID(guid)
 
     return {
         guid          = guid,
@@ -75,6 +87,10 @@ local function CollectTargetData()
         updatedBy     = "OSINT-CHARACTER-INDEX",
         lastModified  = date("!%Y-%m-%dT%H:%M:%SZ"),
     }
+end
+
+local function CollectTargetData()
+    return CollectUnitData("target")
 end
 
 -- ============================================
