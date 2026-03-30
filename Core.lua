@@ -133,6 +133,12 @@ local function DebugPrint(data)
     print("  |cffffd700  LastModified:|r  " .. tostring(data.lastModified))
 end
 
+local function DebugPrintSource(data, source)
+    print("|cff00ff00[CMNW-OSINT]|r " .. source .. " captured: "
+        .. tostring(data.name) .. "-" .. tostring(data.realm)
+        .. " |cff888888(" .. tostring(data.guid) .. ")|r")
+end
+
 local function SayLastCaptured()
     if not lastCaptured then
         print("|cff00ff00[CMNW-OSINT]|r No captured target yet.")
@@ -234,8 +240,11 @@ local CLEU_THROTTLE_SECS = 30
 local cleuThrottle = {}
 
 local function SaveToDB(data)
-    -- Key by GUID -- overwrites if same player seen again
+    if CMNWOSINT_DB[data.guid] then
+        return false
+    end
     CMNWOSINT_DB[data.guid] = data
+    return true
 end
 
 -- ============================================
@@ -396,8 +405,9 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
     elseif event == "PLAYER_TARGET_CHANGED" then
         local data = CollectTargetData()
         if data then
-            DebugPrint(data)
-            SaveToDB(data)
+            if SaveToDB(data) then
+                DebugPrint(data)
+            end
         end
     elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
         local _, subEvent, _, sourceGUID, sourceName, _, _, destGUID, destName = CombatLogGetCurrentEventInfo()
@@ -406,9 +416,12 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         if sourceGUID and sourceGUID:find("^Player-") then
             if not cleuThrottle[sourceGUID] or (now - cleuThrottle[sourceGUID]) >= CLEU_THROTTLE_SECS then
                 cleuThrottle[sourceGUID] = now
-                local data = CollectCLEUData(sourceGUID, sourceName)
-                if data then
-                    SaveToDB(data)
+                if not CMNWOSINT_DB[sourceGUID] then
+                    local data = CollectCLEUData(sourceGUID, sourceName)
+                    if data then
+                        SaveToDB(data)
+                        DebugPrintSource(data, "CLEU")
+                    end
                 end
             end
         end
@@ -416,9 +429,12 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         if destGUID and destGUID:find("^Player-") then
             if not cleuThrottle[destGUID] or (now - cleuThrottle[destGUID]) >= CLEU_THROTTLE_SECS then
                 cleuThrottle[destGUID] = now
-                local data = CollectCLEUData(destGUID, destName)
-                if data then
-                    SaveToDB(data)
+                if not CMNWOSINT_DB[destGUID] then
+                    local data = CollectCLEUData(destGUID, destName)
+                    if data then
+                        SaveToDB(data)
+                        DebugPrintSource(data, "CLEU")
+                    end
                 end
             end
         end
@@ -428,7 +444,9 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         if data then
             data.createdBy = "OSINT-NAMEPLATE-GET"
             data.updatedBy = "OSINT-NAMEPLATE-INDEX"
-            SaveToDB(data)
+            if SaveToDB(data) then
+                DebugPrintSource(data, "Nameplate")
+            end
         end
     end
 end)
