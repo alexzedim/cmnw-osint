@@ -12,13 +12,6 @@ local addonName, ns = ...
 -- INITIALIZATION
 -- ============================================
 
-local function OnInitialize()
-    if not CMNWOSINT_DB then
-        CMNWOSINT_DB = {}
-    end
-    CreateMainFrame()
-end
-
 -- ============================================
 -- HELPERS
 -- ============================================
@@ -602,6 +595,17 @@ SlashCmdList["CMNWOSINT"] = function(msg)
             mainFrame:Show()
         end
     end
+end
+
+-- ============================================
+-- INITIALIZATION (deferred)
+-- ============================================
+
+local function OnInitialize()
+    if not CMNWOSINT_DB then
+        CMNWOSINT_DB = {}
+    end
+    CreateMainFrame()
 end
 
 -- ============================================
