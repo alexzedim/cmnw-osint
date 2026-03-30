@@ -4,7 +4,7 @@ local addonName, ns = ...
     CMNW-OSINT
     Passive player intelligence collection from target, nameplates and chat
     Captures: guid, id, name, realm, level, faction, race, class, gender, guild, status
-    Exports to popup as JSON via /cmnw export
+    Exports to popup as JSON via Export button in main frame
     Data persisted to SavedVariables — insert-only (never updates existing records)
 ]]
 
@@ -16,6 +16,7 @@ local function OnInitialize()
     if not CMNWOSINT_DB then
         CMNWOSINT_DB = {}
     end
+    CreateMainFrame()
 end
 
 -- ============================================
@@ -137,10 +138,9 @@ end
 -- DEBUG PRINT
 -- ============================================
 
-local lastCaptured = nil
+local mainFrame = nil
 
 local function DebugPrint(data, source)
-    lastCaptured = data
     print("|cff00ff00[CMNW-OSINT]|r " .. (source or "Target") .. " captured:")
     print("  |cffffd700  GUID:|r          " .. tostring(data.guid))
     print("  |cffffd700  ID:|r            " .. tostring(data.id))
@@ -274,12 +274,221 @@ local CHAT_EVENTS = {
 local CHAT_EVENTS_SET = {}
 for _, v in ipairs(CHAT_EVENTS) do CHAT_EVENTS_SET[v] = true end
 
+local SOURCE_TAGS = {
+    ["OSINT-CHARACTER-GET"] = "TGT",
+    ["OSINT-CHAT-GET"]      = "CHT",
+    ["OSINT-CLEU-GET"]      = "CLEU",
+    ["OSINT-NAMEPLATE-GET"] = "NPL",
+}
+
+local COLUMN_WIDTHS = { 28, 100, 90, 34, 72, 72, 42, 100, 72 }
+local COLUMN_ALIGNS = { "CENTER", "LEFT", "LEFT", "CENTER", "LEFT", "LEFT", "CENTER", "LEFT", "CENTER" }
+local ROW_HEIGHT    = 18
+local VISIBLE_ROWS  = 18
+
+local counterText = nil
+local scrollFrame = nil
+local rowButtons  = {}
+
+function CMNWOSINT_UpdateCounter()
+    if not counterText then return end
+    local c = 0
+    for _ in pairs(CMNWOSINT_DB) do c = c + 1 end
+    counterText:SetText("Players: " .. c)
+end
+
+function CMNWOSINT_UpdateTable()
+    if not scrollFrame then return end
+
+    local data = {}
+    for _, entry in pairs(CMNWOSINT_DB) do
+        table.insert(data, entry)
+    end
+    table.sort(data, function(a, b)
+        return (a.name or "") < (b.name or "")
+    end)
+
+    FauxScrollFrame_Update(scrollFrame, #data, VISIBLE_ROWS, ROW_HEIGHT)
+
+    local offset = FauxScrollFrame_GetOffset(scrollFrame)
+
+    for i = 1, VISIBLE_ROWS do
+        local row   = rowButtons[i]
+        local idx   = offset + i
+        local entry = data[idx]
+
+        if idx <= #data then
+            row.guid = entry.guid
+
+            local values = {
+                tostring(idx),
+                entry.name          or "-",
+                entry.realm         or "-",
+                entry.level         and tostring(entry.level) or "-",
+                entry.className     or "-",
+                entry.raceName      or "-",
+                entry.faction       and entry.faction:sub(1, 1) or "-",
+                entry.guild         or "-",
+                SOURCE_TAGS[entry.createdBy] or entry.createdBy or "-",
+            }
+
+            for j, fs in ipairs(row.fontStrings) do
+                fs:SetText(values[j])
+            end
+
+            row:Show()
+            if row.bg then
+                row.bg:Show()
+                if idx % 2 == 0 then
+                    row.bg:SetColorTexture(1, 1, 1, 0.04)
+                else
+                    row.bg:SetColorTexture(1, 1, 1, 0.02)
+                end
+            end
+        else
+            row:Hide()
+            if row.bg then row.bg:Hide() end
+        end
+    end
+end
+
 local function SaveToDB(data)
     if CMNWOSINT_DB[data.guid] then
         return false
     end
     CMNWOSINT_DB[data.guid] = data
+    if mainFrame and mainFrame:IsShown() then
+        CMNWOSINT_UpdateCounter()
+        CMNWOSINT_UpdateTable()
+    end
     return true
+end
+
+-- ============================================
+-- UI — MAIN FRAME
+-- ============================================
+
+local function CreateMainFrame()
+    if mainFrame then return end
+
+    local f = CreateFrame("Frame", "CMNWOSINT_MainFrame", UIParent, "BackdropTemplate")
+    f:SetSize(740, 460)
+    f:SetPoint("CENTER")
+    f:SetBackdrop({
+        bgFile   = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile     = true, tileSize = 32, edgeSize = 32,
+        insets   = { left = 8, right = 8, top = 8, bottom = 8 }
+    })
+    f:SetBackdropColor(0, 0, 0, 1)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving)
+    f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    f:SetFrameStrata("DIALOG")
+    f:Hide()
+
+    tinsert(UISpecialFrames, "CMNWOSINT_MainFrame")
+
+    local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -14)
+    title:SetText("CMNW-OSINT")
+
+    local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -2, -2)
+
+    counterText = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+    counterText:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
+
+    local exportBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    exportBtn:SetSize(90, 22)
+    exportBtn:SetPoint("TOPRIGHT", closeBtn, "BOTTOMRIGHT", -4, -4)
+    exportBtn:SetText("Export JSON")
+    exportBtn:SetScript("OnClick", function()
+        ExportJSON()
+    end)
+
+    local clearBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
+    clearBtn:SetSize(70, 22)
+    clearBtn:SetPoint("RIGHT", exportBtn, "LEFT", -4, 0)
+    clearBtn:SetText("Clear DB")
+    clearBtn:SetScript("OnClick", function()
+        CMNWOSINT_DB = {}
+        CMNWOSINT_UpdateCounter()
+        CMNWOSINT_UpdateTable()
+        print("|cff00ff00[CMNW-OSINT]|r Database cleared.")
+    end)
+
+    local headerY = -60
+    local headers = { "#", "Name", "Realm", "Lvl", "Class", "Race", "Fac", "Guild", "Src" }
+    local totalW  = 0
+    for _, w in ipairs(COLUMN_WIDTHS) do totalW = totalW + w end
+
+    local colX = 16
+    for i, hdr in ipairs(headers) do
+        local fs = f:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+        fs:SetPoint("TOPLEFT", f, "TOPLEFT", colX, headerY)
+        fs:SetWidth(COLUMN_WIDTHS[i])
+        fs:SetJustifyH(COLUMN_ALIGNS[i])
+        fs:SetText(hdr)
+        colX = colX + COLUMN_WIDTHS[i]
+    end
+
+    local divider = f:CreateTexture(nil, "ARTWORK")
+    divider:SetPoint("TOPLEFT", f, "TOPLEFT", 16, headerY - 14)
+    divider:SetPoint("TOPRIGHT", f, "TOPRIGHT", -36, headerY - 14)
+    divider:SetHeight(1)
+    divider:SetColorTexture(0.5, 0.5, 0.5, 0.5)
+
+    local tableTop    = headerY - 18
+    local tableBottom = -16
+    local tableLeft   = 16
+    local tableRight  = -36
+
+    scrollFrame = CreateFrame("ScrollFrame", "CMNWOSINT_ScrollFrame", f, "FauxScrollFrameTemplate")
+    scrollFrame:SetPoint("TOPLEFT", f, "TOPLEFT", tableLeft, tableTop)
+    scrollFrame:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", tableRight, tableBottom)
+    scrollFrame:SetScript("OnVerticalScroll", function(self, offset)
+        FauxScrollFrame_OnVerticalScroll(self, offset, ROW_HEIGHT, CMNWOSINT_UpdateTable)
+    end)
+
+    for i = 1, VISIBLE_ROWS do
+        local row = CreateFrame("Button", nil, f)
+        row:SetSize(totalW, ROW_HEIGHT)
+        row:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, -((i - 1) * ROW_HEIGHT))
+
+        local bg = row:CreateTexture(nil, "BACKGROUND")
+        bg:SetAllPoints(row)
+        bg:Hide()
+        row.bg = bg
+
+        local highlight = row:CreateTexture(nil, "HIGHLIGHT")
+        highlight:SetAllPoints(row)
+        highlight:SetColorTexture(1, 1, 1, 0.08)
+
+        row.fontStrings = {}
+        local rx = 0
+        for j = 1, #COLUMN_WIDTHS do
+            local fs = row:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+            fs:SetPoint("LEFT", row, "LEFT", rx, 0)
+            fs:SetWidth(COLUMN_WIDTHS[j])
+            fs:SetHeight(ROW_HEIGHT)
+            fs:SetJustifyH(COLUMN_ALIGNS[j])
+            table.insert(row.fontStrings, fs)
+            rx = rx + COLUMN_WIDTHS[j]
+        end
+
+        row:Hide()
+        rowButtons[i] = row
+    end
+
+    f:SetScript("OnShow", function()
+        CMNWOSINT_UpdateCounter()
+        CMNWOSINT_UpdateTable()
+    end)
+
+    mainFrame = f
 end
 
 -- ============================================
