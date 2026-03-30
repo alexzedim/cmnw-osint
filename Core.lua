@@ -31,6 +31,15 @@ local function ParseGuidID(guid)
     return nil
 end
 
+local function ParseGuidRealmID(guid)
+    if not guid then return nil end
+    local parts = { strsplit("-", guid) }
+    if parts[2] then
+        return tonumber(parts[2])
+    end
+    return nil
+end
+
 local function ParseNameRealm(fullName)
     if not fullName then return nil, nil end
     local parts = { strsplit("-", fullName) }
@@ -65,11 +74,13 @@ local function CollectUnitData(unit)
     local gender = sex == 1 and "Male" or sex == 2 and "Female" or sex == 3 and "Neuter" or "Unknown"
 
     local guildName, guildRankName, guildRankIndex = GetGuildInfo(unit)
-    local id = ParseGuidID(guid)
+    local id     = ParseGuidID(guid)
+    local realmId = ParseGuidRealmID(guid)
 
     return {
         guid          = guid,
         id            = id,
+        realmId       = realmId,
         name          = name,
         realm         = realm,
         level         = level,
@@ -97,9 +108,11 @@ end
 local function CollectChatData(senderName, senderGUID)
     local name, realm = ParseNameRealm(senderName)
     local id          = ParseGuidID(senderGUID)
+    local realmId     = ParseGuidRealmID(senderGUID)
     return {
         guid          = senderGUID,
         id            = id,
+        realmId       = realmId,
         name          = name,
         realm         = realm,
         level         = nil,
@@ -131,6 +144,7 @@ local function DebugPrint(data, source)
     print("|cff00ff00[CMNW-OSINT]|r " .. (source or "Target") .. " captured:")
     print("  |cffffd700  GUID:|r          " .. tostring(data.guid))
     print("  |cffffd700  ID:|r            " .. tostring(data.id))
+    print("  |cffffd700  RealmID:|r      " .. tostring(data.realmId))
     print("  |cffffd700  Name:|r          " .. tostring(data.name))
     print("  |cffffd700  Realm:|r         " .. tostring(data.realm))
     print("  |cffffd700  Level:|r         " .. tostring(data.level))
@@ -260,9 +274,6 @@ local CHAT_EVENTS = {
 local CHAT_EVENTS_SET = {}
 for _, v in ipairs(CHAT_EVENTS) do CHAT_EVENTS_SET[v] = true end
 
-local chatThrottle  = {}
-local CHAT_THROTTLE = 60
-
 local function SaveToDB(data)
     if CMNWOSINT_DB[data.guid] then
         return false
@@ -345,9 +356,10 @@ local function ExportJSON()
             return tostring(v)
         end
         local entry = string.format(
-            '  {"guid":%s,"id":%s,"name":%s,"realm":%s,"level":%s,"faction":%s,"race":%s,"raceName":%s,"class":%s,"className":%s,"classFile":%s,"gender":%s,"guild":%s,"guildRank":%s,"guildRankName":%s,"status":%s,"createdBy":%s,"updatedBy":%s,"lastModified":%s}',
+            '  {"guid":%s,"id":%s,"realmId":%s,"name":%s,"realm":%s,"level":%s,"faction":%s,"race":%s,"raceName":%s,"class":%s,"className":%s,"classFile":%s,"gender":%s,"guild":%s,"guildRank":%s,"guildRankName":%s,"status":%s,"createdBy":%s,"updatedBy":%s,"lastModified":%s}',
             jsonStr(data.guid),
             jsonNum(data.id),
+            jsonNum(data.realmId),
             jsonStr(data.name),
             jsonStr(data.realm),
             jsonNum(data.level),
@@ -450,14 +462,10 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         local _, senderName, _, _, _, _, _, _, _, _, _, senderGUID = ...
         if senderGUID then
             pcall(function()
-                local now = time()
-                if not chatThrottle[senderGUID] or (now - chatThrottle[senderGUID]) >= CHAT_THROTTLE then
-                    local data = CollectChatData(senderName, senderGUID)
-                    if data then
-                        if SaveToDB(data) then
-                            DebugPrint(data, "Chat")
-                        end
-                        chatThrottle[senderGUID] = now
+                local data = CollectChatData(senderName, senderGUID)
+                if data then
+                    if SaveToDB(data) then
+                        DebugPrint(data, "Chat")
                     end
                 end
             end)
