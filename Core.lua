@@ -2,9 +2,7 @@ local addonName, ns = ...
 
 --[[
     CMNW-OSINT
-    Captures player target data: guid, id, name, realm, level, effectiveLevel, faction,
-    race, class, gender, guild, health, healthMax, classification, isPvP, reaction,
-    isDead, isGhost, zone, subZone, status
+    Captures player target data: guid, id, name, realm, level, faction, race, class, gender, guild, status
     Exports to popup as JSON via /cmnw export
     Data persisted to SavedVariables for external reading
 ]]
@@ -56,48 +54,26 @@ local function CollectTargetData()
         end
     end
 
-    local health         = UnitHealth(unit)
-    local healthMax      = UnitHealthMax(unit)
-    local effectiveLevel = UnitEffectiveLevel(unit)
-    local classification = UnitClassification(unit) or "normal"
-    local isPvP          = UnitIsPVP(unit)
-    local reaction       = UnitReaction(unit, "player")
-    local isDead         = UnitIsDead(unit)
-    local isGhost        = UnitIsGhost(unit)
-
-    local zone    = GetRealZoneText() or ""
-    local subZone = GetSubZoneText() or ""
-
     return {
-        guid            = guid,
-        id              = id,
-        name            = name,
-        realm           = realm,
-        level           = level,
-        effectiveLevel  = effectiveLevel,
-        faction         = faction,
-        race            = raceIndex,
-        raceName        = raceName,
-        class           = classIndex,
-        className       = className,
-        classFile       = classFile,
-        gender          = gender,
-        guild           = guildName,
-        guildRank       = guildRankIndex,
-        guildRankName   = guildRankName,
-        health          = health,
-        healthMax       = healthMax,
-        classification  = classification,
-        isPvP           = isPvP,
-        reaction        = reaction,
-        isDead          = isDead,
-        isGhost         = isGhost,
-        zone            = zone,
-        subZone         = subZone,
-        status          = "------",
-        createdBy       = "OSINT-CHARACTER-GET",
-        updatedBy       = "OSINT-CHARACTER-INDEX",
-        lastModified    = date("!%Y-%m-%dT%H:%M:%SZ"),
+        guid          = guid,
+        id            = id,
+        name          = name,
+        realm         = realm,
+        level         = level,
+        faction       = faction,
+        race          = raceIndex,
+        raceName      = raceName,
+        class         = classIndex,
+        className     = className,
+        classFile     = classFile,
+        gender        = gender,
+        guild         = guildName,
+        guildRank     = guildRankIndex,
+        guildRankName = guildRankName,
+        status        = "------",
+        createdBy     = "OSINT-CHARACTER-GET",
+        updatedBy     = "OSINT-CHARACTER-INDEX",
+        lastModified  = date("!%Y-%m-%dT%H:%M:%SZ"),
     }
 end
 
@@ -110,28 +86,20 @@ local lastCaptured = nil
 local function DebugPrint(data)
     lastCaptured = data
     print("|cff00ff00[CMNW-OSINT]|r Target captured:")
-    print("  |cffffd700  GUID:|r             " .. tostring(data.guid))
-    print("  |cffffd700  ID:|r               " .. tostring(data.id))
-    print("  |cffffd700  Name:|r             " .. tostring(data.name))
-    print("  |cffffd700  Realm:|r            " .. tostring(data.realm))
-    print("  |cffffd700  Level:|r            " .. tostring(data.level) .. " (effective: " .. tostring(data.effectiveLevel) .. ")")
-    print("  |cffffd700  Faction:|r          " .. tostring(data.faction))
-    print("  |cffffd700  Race:|r             " .. tostring(data.race) .. " (" .. tostring(data.raceName) .. ")")
-    print("  |cffffd700  Class:|r            " .. tostring(data.class) .. " (" .. tostring(data.className) .. " - " .. tostring(data.classFile) .. ")")
-    print("  |cffffd700  Gender:|r           " .. tostring(data.gender))
-    print("  |cffffd700  Guild:|r            " .. tostring(data.guild))
-    print("  |cffffd700  GuildRank:|r        " .. tostring(data.guildRank))
-    print("  |cffffd700  GuildRankName:|r    " .. tostring(data.guildRankName))
-    print("  |cffffd700  Health:|r           " .. tostring(data.health) .. " / " .. tostring(data.healthMax))
-    print("  |cffffd700  Classification:|r   " .. tostring(data.classification))
-    print("  |cffffd700  PvP:|r              " .. tostring(data.isPvP))
-    print("  |cffffd700  Reaction:|r         " .. tostring(data.reaction))
-    print("  |cffffd700  Dead:|r             " .. tostring(data.isDead))
-    print("  |cffffd700  Ghost:|r            " .. tostring(data.isGhost))
-    print("  |cffffd700  Zone:|r             " .. tostring(data.zone))
-    print("  |cffffd700  SubZone:|r          " .. tostring(data.subZone))
-    print("  |cffffd700  Status:|r           " .. tostring(data.status))
-    print("  |cffffd700  LastModified:|r     " .. tostring(data.lastModified))
+    print("  |cffffd700  GUID:|r          " .. tostring(data.guid))
+    print("  |cffffd700  ID:|r            " .. tostring(data.id))
+    print("  |cffffd700  Name:|r          " .. tostring(data.name))
+    print("  |cffffd700  Realm:|r         " .. tostring(data.realm))
+    print("  |cffffd700  Level:|r         " .. tostring(data.level))
+    print("  |cffffd700  Faction:|r       " .. tostring(data.faction))
+    print("  |cffffd700  Race:|r          " .. tostring(data.race) .. " (" .. tostring(data.raceName) .. ")")
+    print("  |cffffd700  Class:|r         " .. tostring(data.class) .. " (" .. tostring(data.className) .. " - " .. tostring(data.classFile) .. ")")
+    print("  |cffffd700  Gender:|r        " .. tostring(data.gender))
+    print("  |cffffd700  Guild:|r         " .. tostring(data.guild))
+    print("  |cffffd700  GuildRank:|r     " .. tostring(data.guildRank))
+    print("  |cffffd700  GuildRankName:|r " .. tostring(data.guildRankName))
+    print("  |cffffd700  Status:|r        " .. tostring(data.status))
+    print("  |cffffd700  LastModified:|r  " .. tostring(data.lastModified))
 end
 
 local function SayLastCaptured()
@@ -144,19 +112,13 @@ local function SayLastCaptured()
     SendChatMessage("[CMNW-OSINT] ID: " .. tostring(d.id), "SAY")
     SendChatMessage("[CMNW-OSINT] Name: " .. tostring(d.name), "SAY")
     SendChatMessage("[CMNW-OSINT] Realm: " .. tostring(d.realm), "SAY")
-    SendChatMessage("[CMNW-OSINT] Level: " .. tostring(d.level) .. " (effective: " .. tostring(d.effectiveLevel) .. ")", "SAY")
+    SendChatMessage("[CMNW-OSINT] Level: " .. tostring(d.level), "SAY")
     SendChatMessage("[CMNW-OSINT] Faction: " .. tostring(d.faction), "SAY")
     SendChatMessage("[CMNW-OSINT] Race: " .. tostring(d.race) .. " (" .. tostring(d.raceName) .. ")", "SAY")
     SendChatMessage("[CMNW-OSINT] Class: " .. tostring(d.class) .. " (" .. tostring(d.className) .. ")", "SAY")
     SendChatMessage("[CMNW-OSINT] Gender: " .. tostring(d.gender), "SAY")
     SendChatMessage("[CMNW-OSINT] Guild: " .. tostring(d.guild), "SAY")
     SendChatMessage("[CMNW-OSINT] GuildRank: " .. tostring(d.guildRank) .. " - " .. tostring(d.guildRankName), "SAY")
-    SendChatMessage("[CMNW-OSINT] Health: " .. tostring(d.health) .. "/" .. tostring(d.healthMax), "SAY")
-    SendChatMessage("[CMNW-OSINT] Classification: " .. tostring(d.classification), "SAY")
-    SendChatMessage("[CMNW-OSINT] PvP: " .. tostring(d.isPvP), "SAY")
-    SendChatMessage("[CMNW-OSINT] Reaction: " .. tostring(d.reaction), "SAY")
-    SendChatMessage("[CMNW-OSINT] Dead: " .. tostring(d.isDead) .. " Ghost: " .. tostring(d.isGhost), "SAY")
-    SendChatMessage("[CMNW-OSINT] Zone: " .. tostring(d.zone) .. " - " .. tostring(d.subZone), "SAY")
     SendChatMessage("[CMNW-OSINT] Status: " .. tostring(d.status), "SAY")
     SendChatMessage("[CMNW-OSINT] LastModified: " .. tostring(d.lastModified), "SAY")
 end
@@ -315,18 +277,13 @@ local function ExportJSON()
             if v == nil then return "null" end
             return tostring(v)
         end
-        local function jsonBool(v)
-            if v == nil then return "null" end
-            return v and "true" or "false"
-        end
         local entry = string.format(
-            '  {"guid":%s,"id":%s,"name":%s,"realm":%s,"level":%s,"effectiveLevel":%s,"faction":%s,"race":%s,"raceName":%s,"class":%s,"className":%s,"classFile":%s,"gender":%s,"guild":%s,"guildRank":%s,"guildRankName":%s,"health":%s,"healthMax":%s,"classification":%s,"isPvP":%s,"reaction":%s,"isDead":%s,"isGhost":%s,"zone":%s,"subZone":%s,"status":%s,"createdBy":%s,"updatedBy":%s,"lastModified":%s}',
+            '  {"guid":%s,"id":%s,"name":%s,"realm":%s,"level":%s,"faction":%s,"race":%s,"raceName":%s,"class":%s,"className":%s,"classFile":%s,"gender":%s,"guild":%s,"guildRank":%s,"guildRankName":%s,"status":%s,"createdBy":%s,"updatedBy":%s,"lastModified":%s}',
             jsonStr(data.guid),
             jsonNum(data.id),
             jsonStr(data.name),
             jsonStr(data.realm),
             jsonNum(data.level),
-            jsonNum(data.effectiveLevel),
             jsonStr(data.faction),
             jsonNum(data.race),
             jsonStr(data.raceName),
@@ -337,15 +294,6 @@ local function ExportJSON()
             jsonStr(data.guild),
             jsonNum(data.guildRank),
             jsonStr(data.guildRankName),
-            jsonNum(data.health),
-            jsonNum(data.healthMax),
-            jsonStr(data.classification),
-            jsonBool(data.isPvP),
-            jsonNum(data.reaction),
-            jsonBool(data.isDead),
-            jsonBool(data.isGhost),
-            jsonStr(data.zone),
-            jsonStr(data.subZone),
             jsonStr(data.status),
             jsonStr(data.createdBy),
             jsonStr(data.updatedBy),
