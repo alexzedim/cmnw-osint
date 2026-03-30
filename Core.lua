@@ -2,7 +2,7 @@ local addonName, ns = ...
 
 --[[
     CMNW-OSINT
-    Passive player intelligence collection from target, combat log, and nameplates
+    Passive player intelligence collection from target and nameplates
     Captures: guid, id, name, realm, level, faction, race, class, gender, guild, status
     Exports to popup as JSON via /cmnw export
     Data persisted to SavedVariables — insert-only (never updates existing records)
@@ -92,21 +92,6 @@ end
 
 local function CollectTargetData()
     return CollectUnitData("target")
-end
-
-local function CollectCLEUData(guid, fullName)
-    local id = ParseGuidID(guid)
-    local name, realm = ParseNameRealm(fullName)
-    return {
-        guid         = guid,
-        id           = id,
-        name         = name,
-        realm        = realm,
-        status       = "------",
-        createdBy    = "OSINT-CLEU-GET",
-        updatedBy    = "OSINT-CLEU-INDEX",
-        lastModified = date("!%Y-%m-%dT%H:%M:%SZ"),
-    }
 end
 
 -- ============================================
@@ -236,9 +221,6 @@ end
 -- ============================================
 -- DATABASE
 -- ============================================
-
-local CLEU_THROTTLE_SECS = 30
-local cleuThrottle = {}
 
 local function SaveToDB(data)
     if CMNWOSINT_DB[data.guid] then
@@ -396,7 +378,6 @@ local EventFrame = CreateFrame("Frame")
 
 EventFrame:RegisterEvent("ADDON_LOADED")
 EventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
-EventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 EventFrame:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 
 EventFrame:SetScript("OnEvent", function(self, event, ...)
@@ -408,35 +389,6 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         if data then
             if SaveToDB(data) then
                 DebugPrint(data)
-            end
-        end
-    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
-        local _, subEvent, _, sourceGUID, sourceName, _, _, destGUID, destName = CombatLogGetCurrentEventInfo()
-        local now = time()
-
-        if sourceGUID and sourceGUID:find("^Player-") then
-            if not cleuThrottle[sourceGUID] or (now - cleuThrottle[sourceGUID]) >= CLEU_THROTTLE_SECS then
-                cleuThrottle[sourceGUID] = now
-                if not CMNWOSINT_DB[sourceGUID] then
-                    local data = CollectCLEUData(sourceGUID, sourceName)
-                    if data then
-                        SaveToDB(data)
-                        DebugPrintSource(data, "CLEU")
-                    end
-                end
-            end
-        end
-
-        if destGUID and destGUID:find("^Player-") then
-            if not cleuThrottle[destGUID] or (now - cleuThrottle[destGUID]) >= CLEU_THROTTLE_SECS then
-                cleuThrottle[destGUID] = now
-                if not CMNWOSINT_DB[destGUID] then
-                    local data = CollectCLEUData(destGUID, destName)
-                    if data then
-                        SaveToDB(data)
-                        DebugPrintSource(data, "CLEU")
-                    end
-                end
             end
         end
     elseif event == "NAME_PLATE_UNIT_ADDED" then
