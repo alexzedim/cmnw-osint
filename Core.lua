@@ -2,7 +2,7 @@ local addonName, ns = ...
 
 --[[
     CMNW-OSINT
-    Captures player target data: guid, name, realm, level, faction
+    Captures player target data: guid, id, name, realm, level, faction, race, class, gender, guild, status
     Exports to clipboard as JSON via /cmnw export
     Data persisted to SavedVariables for external reading
 ]]
@@ -24,7 +24,6 @@ end
 local function CollectTargetData()
     local unit = "target"
 
-    -- Only process players, not NPCs/mobs
     if not UnitExists(unit) or not UnitIsPlayer(unit) then
         return nil
     end
@@ -34,18 +33,47 @@ local function CollectTargetData()
     local level      = UnitLevel(unit)
     local faction    = UnitFactionGroup(unit) or "Unknown"
 
-    -- UnitName returns nil for realm if same realm; fill with current realm
     if not realm or realm == "" then
         realm = GetRealmName()
     end
 
+    local _, _, raceIndex   = UnitRace(unit)
+    local _, _, classIndex  = UnitClass(unit)
+    local className, classFile, _ = UnitClass(unit)
+    local raceName, _, _    = UnitRace(unit)
+    local sex = UnitSex(unit)
+    local gender = sex == 1 and "Male" or sex == 2 and "Female" or sex == 3 and "Neuter" or "Unknown"
+
+    local guildName, guildRankName, guildRankIndex = GetGuildInfo(unit)
+
+    local id = nil
+    if guid then
+        local parts = { strsplit("-", guid) }
+        if parts[3] then
+            id = tonumber(parts[3], 16)
+        end
+    end
+
     return {
-        guid    = guid,
-        name    = name,
-        realm   = realm,
-        level   = level,
-        faction = faction,
-        lastModified = date("!%Y-%m-%dT%H:%M:%SZ"), -- ISO 8601 UTC timestamp
+        guid          = guid,
+        id            = id,
+        name          = name,
+        realm         = realm,
+        level         = level,
+        faction       = faction,
+        race          = raceIndex,
+        raceName      = raceName,
+        class         = classIndex,
+        className     = className,
+        classFile     = classFile,
+        gender        = gender,
+        guild         = guildName,
+        guildRank     = guildRankIndex,
+        guildRankName = guildRankName,
+        status        = "------",
+        createdBy     = "OSINT-CHARACTER-GET",
+        updatedBy     = "OSINT-CHARACTER-INDEX",
+        lastModified  = date("!%Y-%m-%dT%H:%M:%SZ"),
     }
 end
 
@@ -58,12 +86,20 @@ local lastCaptured = nil
 local function DebugPrint(data)
     lastCaptured = data
     print("|cff00ff00[CMNW-OSINT]|r Target captured:")
-    print("  |cffffd700  GUID:|r    " .. tostring(data.guid))
-    print("  |cffffd700  Name:|r    " .. tostring(data.name))
-    print("  |cffffd700  Realm:|r   " .. tostring(data.realm))
-    print("  |cffffd700  Level:|r   " .. tostring(data.level))
-    print("  |cffffd700  Faction:|r " .. tostring(data.faction))
-    print("  |cffffd700  LastModified:|r    " .. tostring(data.lastModified))
+    print("  |cffffd700  GUID:|r          " .. tostring(data.guid))
+    print("  |cffffd700  ID:|r            " .. tostring(data.id))
+    print("  |cffffd700  Name:|r          " .. tostring(data.name))
+    print("  |cffffd700  Realm:|r         " .. tostring(data.realm))
+    print("  |cffffd700  Level:|r         " .. tostring(data.level))
+    print("  |cffffd700  Faction:|r       " .. tostring(data.faction))
+    print("  |cffffd700  Race:|r          " .. tostring(data.race) .. " (" .. tostring(data.raceName) .. ")")
+    print("  |cffffd700  Class:|r         " .. tostring(data.class) .. " (" .. tostring(data.className) .. " - " .. tostring(data.classFile) .. ")")
+    print("  |cffffd700  Gender:|r        " .. tostring(data.gender))
+    print("  |cffffd700  Guild:|r         " .. tostring(data.guild))
+    print("  |cffffd700  GuildRank:|r     " .. tostring(data.guildRank))
+    print("  |cffffd700  GuildRankName:|r " .. tostring(data.guildRankName))
+    print("  |cffffd700  Status:|r        " .. tostring(data.status))
+    print("  |cffffd700  LastModified:|r  " .. tostring(data.lastModified))
 end
 
 local function SayLastCaptured()
@@ -73,10 +109,17 @@ local function SayLastCaptured()
     end
     local d = lastCaptured
     SendChatMessage("[CMNW-OSINT] GUID: " .. tostring(d.guid), "SAY")
+    SendChatMessage("[CMNW-OSINT] ID: " .. tostring(d.id), "SAY")
     SendChatMessage("[CMNW-OSINT] Name: " .. tostring(d.name), "SAY")
     SendChatMessage("[CMNW-OSINT] Realm: " .. tostring(d.realm), "SAY")
     SendChatMessage("[CMNW-OSINT] Level: " .. tostring(d.level), "SAY")
     SendChatMessage("[CMNW-OSINT] Faction: " .. tostring(d.faction), "SAY")
+    SendChatMessage("[CMNW-OSINT] Race: " .. tostring(d.race) .. " (" .. tostring(d.raceName) .. ")", "SAY")
+    SendChatMessage("[CMNW-OSINT] Class: " .. tostring(d.class) .. " (" .. tostring(d.className) .. ")", "SAY")
+    SendChatMessage("[CMNW-OSINT] Gender: " .. tostring(d.gender), "SAY")
+    SendChatMessage("[CMNW-OSINT] Guild: " .. tostring(d.guild), "SAY")
+    SendChatMessage("[CMNW-OSINT] GuildRank: " .. tostring(d.guildRank) .. " - " .. tostring(d.guildRankName), "SAY")
+    SendChatMessage("[CMNW-OSINT] Status: " .. tostring(d.status), "SAY")
     SendChatMessage("[CMNW-OSINT] LastModified: " .. tostring(d.lastModified), "SAY")
 end
 
@@ -97,7 +140,6 @@ local function DebugDumpUnit(unit)
     local level          = UnitLevel(unit)
     local effectiveLevel = UnitEffectiveLevel(unit)
     local playerControl  = UnitPlayerControlled(unit)
-    local playerOrPet    = UnitPlayerOrPetInGroup(unit)
     local classification = UnitClassification(unit)
     local enClass, classFile, classIndex = UnitClass(unit)
     local enRace, raceFile, raceIndex    = UnitRace(unit)
@@ -119,33 +161,29 @@ local function DebugDumpUnit(unit)
 
     print("\n" .. GREEN .. "========== UNIT DUMP: " .. unit .. " ==========" .. RST)
 
-    print(CYAN .. "--- Identity ---" .. RST)
+    print(GREEN .. "--- Identity ---" .. RST)
     print("  UnitExists:       " .. tostring(exists))
     print("  UnitIsPlayer:     " .. tostring(isPlayer))
     print("  UnitGUID:         " .. tostring(guid))
     print("  UnitName:         " .. tostring(name) .. " |cff888888(realm: " .. tostring(realm) .. ")" .. RST)
     print("  UnitIsSameServer: " .. tostring(sameServer))
 
-    print(CYAN .. "--- Character Info ---" .. RST)
+    print(GREEN .. "--- Character Info ---" .. RST)
     print("  UnitLevel:           " .. tostring(level))
-    print("  UnitEffectiveLevel:  " .. tostring(effectiveLevel))
-    print("  UnitPlayer:          " .. tostring(playerControl))
-    print("  UnitPlayerOrPet:     " .. tostring(playerOrPet))
-    print("  UnitClassification:  " .. tostring(classification))
     print("  UnitClass:           " .. tostring(enClass) .. " |cff888888(file: " .. tostring(classFile) .. ", index: " .. tostring(classIndex) .. ")" .. RST)
     print("  UnitRace:            " .. tostring(enRace) .. " |cff888888(file: " .. tostring(raceFile) .. ", index: " .. tostring(raceIndex) .. ")" .. RST)
     print("  UnitSex:             " .. tostring(sexStr) .. " (" .. tostring(sex) .. ")")
     print("  UnitFactionGroup:    " .. tostring(factionGroup))
     print("  UnitReaction:        " .. reactionStr)
 
-    print(CYAN .. "--- Guild / Social ---" .. RST)
+    print(GREEN .. "--- Guild / Social ---" .. RST)
     print("  GetGuildInfo:         " .. tostring(guildName) ..
         " |cff888888(rank: " .. tostring(guildRankName) ..
         ", index: " .. tostring(guildRankIndex) ..
         ", realm: " .. tostring(guildRealm) .. ")" .. RST)
 
     if guid then
-        print(CYAN .. "--- GUID Parsed ---" .. RST)
+        print(GREEN .. "--- GUID Parsed ---" .. RST)
         print("  Raw parts:     type=" .. tostring(guidType) ..
             " serverID=" .. tostring(guidServerID) ..
             " dbID=" .. tostring(guidDbID) ..
@@ -182,14 +220,35 @@ end
 local function ExportJSON()
     local entries = {}
     for guid, data in pairs(CMNWOSINT_DB) do
+        local function jsonStr(v)
+            if v == nil then return "null" end
+            return '"' .. EscapeJSON(tostring(v)) .. '"'
+        end
+        local function jsonNum(v)
+            if v == nil then return "null" end
+            return tostring(v)
+        end
         local entry = string.format(
-            '  {"guid":"%s","name":"%s","realm":"%s","level":%s,"faction":"%s","lastModified":"%s"}',
-            EscapeJSON(data.guid),
-            EscapeJSON(data.name),
-            EscapeJSON(data.realm),
-            tostring(data.level or 0),
-            EscapeJSON(data.faction),
-            EscapeJSON(data.lastModified)
+            '  {"guid":%s,"id":%s,"name":%s,"realm":%s,"level":%s,"faction":%s,"race":%s,"raceName":%s,"class":%s,"className":%s,"classFile":%s,"gender":%s,"guild":%s,"guildRank":%s,"guildRankName":%s,"status":%s,"createdBy":%s,"updatedBy":%s,"lastModified":%s}',
+            jsonStr(data.guid),
+            jsonNum(data.id),
+            jsonStr(data.name),
+            jsonStr(data.realm),
+            jsonNum(data.level),
+            jsonStr(data.faction),
+            jsonNum(data.race),
+            jsonStr(data.raceName),
+            jsonNum(data.class),
+            jsonStr(data.className),
+            jsonStr(data.classFile),
+            jsonStr(data.gender),
+            jsonStr(data.guild),
+            jsonNum(data.guildRank),
+            jsonStr(data.guildRankName),
+            jsonStr(data.status),
+            jsonStr(data.createdBy),
+            jsonStr(data.updatedBy),
+            jsonStr(data.lastModified)
         )
         table.insert(entries, entry)
     end
@@ -247,13 +306,14 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         OnInitialize()
         print("|cff00ff00[CMNW-OSINT]|r Loaded. Target a player to collect data.")
     elseif event == "PLAYER_TARGET_CHANGED" then
-        pcall(DebugDumpUnit, "target")
-        C_Timer.After(0.5, function()
-            local data = CollectTargetData()
-            if data then
-                DebugPrint(data)
-                SaveToDB(data)
-            end
-        end)
+        local ok, err = pcall(DebugDumpUnit, "target")
+        if not ok then
+            print("|cffff5555[CMNW-OSINT] DebugDumpUnit error:|r " .. tostring(err))
+        end
+        local data = CollectTargetData()
+        if data then
+            DebugPrint(data)
+            SaveToDB(data)
+        end
     end
 end)
