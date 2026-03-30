@@ -159,27 +159,6 @@ local function DebugPrint(data, source)
     print("  |cffffd700  LastModified:|r  " .. tostring(data.lastModified))
 end
 
-local function SayLastCaptured()
-    if not lastCaptured then
-        print("|cff00ff00[CMNW-OSINT]|r No captured target yet.")
-        return
-    end
-    local d = lastCaptured
-    SendChatMessage("[CMNW-OSINT] GUID: " .. tostring(d.guid), "SAY")
-    SendChatMessage("[CMNW-OSINT] ID: " .. tostring(d.id), "SAY")
-    SendChatMessage("[CMNW-OSINT] Name: " .. tostring(d.name), "SAY")
-    SendChatMessage("[CMNW-OSINT] Realm: " .. tostring(d.realm), "SAY")
-    SendChatMessage("[CMNW-OSINT] Level: " .. tostring(d.level), "SAY")
-    SendChatMessage("[CMNW-OSINT] Faction: " .. tostring(d.faction), "SAY")
-    SendChatMessage("[CMNW-OSINT] Race: " .. tostring(d.race) .. " (" .. tostring(d.raceName) .. ")", "SAY")
-    SendChatMessage("[CMNW-OSINT] Class: " .. tostring(d.class) .. " (" .. tostring(d.className) .. ")", "SAY")
-    SendChatMessage("[CMNW-OSINT] Gender: " .. tostring(d.gender), "SAY")
-    SendChatMessage("[CMNW-OSINT] Guild: " .. tostring(d.guild), "SAY")
-    SendChatMessage("[CMNW-OSINT] GuildRank: " .. tostring(d.guildRank) .. " - " .. tostring(d.guildRankName), "SAY")
-    SendChatMessage("[CMNW-OSINT] Status: " .. tostring(d.status), "SAY")
-    SendChatMessage("[CMNW-OSINT] LastModified: " .. tostring(d.lastModified), "SAY")
-end
-
 --[[ Full unit debug dump (disabled)
 local function DebugDumpUnit(unit)
     if not UnitExists(unit) then return end
