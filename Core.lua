@@ -3,7 +3,7 @@ local addonName, ns = ...
 --[[
     CMNW-OSINT
     Captures player target data: guid, id, name, realm, level, faction, race, class, gender, guild, status
-    Exports to clipboard as JSON via /cmnw export
+    Exports to popup as JSON via /cmnw export
     Data persisted to SavedVariables for external reading
 ]]
 
@@ -204,8 +204,56 @@ local function SaveToDB(data)
 end
 
 -- ============================================
--- EXPORT (JSON to clipboard)
+-- EXPORT (JSON to clipboard via popup)
 -- ============================================
+
+local exportFrame = nil
+
+local function CreateExportFrame()
+    if exportFrame then return end
+
+    local f = CreateFrame("Frame", "CMNWOSINT_ExportFrame", UIParent, "BackdropTemplate")
+    f:SetSize(600, 400)
+    f:SetPoint("CENTER")
+    f:SetBackdrop({
+        bgFile   = "Interface\\DialogFrame\\UI-DialogBox-Background",
+        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
+        tile     = true, tileSize = 32, edgeSize = 32,
+        insets   = { left = 8, right = 8, top = 8, bottom = 8 }
+    })
+    f:SetBackdropColor(0, 0, 0, 1)
+    f:SetMovable(true)
+    f:EnableMouse(true)
+    f:RegisterForDrag("LeftButton")
+    f:SetScript("OnDragStart", f.StartMoving)
+    f:SetScript("OnDragStop", f.StopMovingOrSizing)
+    f:EnableKeyboard(true)
+    f:SetScript("OnKeyDown", function(_, key)
+        if key == "ESCAPE" then f:Hide() end
+    end)
+
+    local title = f:CreateFontString(nil, "OVERLAY", "GameFontNormalLarge")
+    title:SetPoint("TOP", f, "TOP", 0, -12)
+    title:SetText("CMNW-OSINT Export — Ctrl+A then Ctrl+C to copy")
+
+    local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
+    closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -2, -2)
+
+    local scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
+    scroll:SetPoint("TOPLEFT", 16, -32)
+    scroll:SetPoint("BOTTOMRIGHT", -36, 16)
+
+    local editBox = CreateFrame("EditBox", nil, scroll)
+    editBox:SetMultiLine(true)
+    editBox:SetAutoFocus(false)
+    editBox:SetFontObject(GameFontNormal)
+    editBox:SetWidth(560)
+    editBox:SetScript("OnEscapePressed", function() f:Hide() end)
+    scroll:SetScrollChild(editBox)
+
+    f.editBox = editBox
+    exportFrame = f
+end
 
 local function EscapeJSON(str)
     if not str then return "" end
@@ -260,8 +308,11 @@ local function ExportJSON()
         json = "[]"
     end
 
-    Clipboard:SetText(json)
-    print("|cff00ff00[CMNW-OSINT]|r JSON copied to clipboard (" .. #entries .. " entries)")
+    CreateExportFrame()
+    exportFrame.editBox:SetText(json)
+    exportFrame.editBox:HighlightText()
+    exportFrame:Show()
+    print("|cff00ff00[CMNW-OSINT]|r JSON exported (" .. #entries .. " entries) — Ctrl+A, Ctrl+C in the popup to copy")
 end
 
 -- ============================================
