@@ -260,7 +260,7 @@ local UPDATED_TAGS = {
     ["OSINT-NAMEPLATE-INDEX"] = "NPL",
 }
 
-local COLUMN_WIDTHS = { 22, 40, 80, 72, 44, 28, 30, 28, 58, 28, 58, 52, 38, 80, 34, 58, 44, 34, 86 }
+local COLUMN_WIDTHS = { 25, 45, 90, 82, 50, 32, 34, 32, 66, 32, 66, 59, 43, 90, 38, 66, 50, 38, 97 }
 local COLUMN_ALIGNS = { "CENTER", "CENTER", "LEFT", "LEFT", "CENTER", "CENTER", "CENTER", "CENTER", "LEFT", "CENTER", "LEFT", "LEFT", "CENTER", "LEFT", "CENTER", "LEFT", "CENTER", "CENTER", "LEFT" }
 local ROW_HEIGHT    = 18
 local MAX_ROWS      = 50
@@ -280,6 +280,7 @@ local counterText       = nil
 local scrollFrame       = nil
 local rowButtons        = {}
 local selectedEntry     = nil
+local headerFS        = {}
 local ExportJSON
 
 function CMNWOSINT_UpdateCounter()
@@ -439,6 +440,35 @@ local function CreateElvUICloseButton(parent)
     return btn
 end
 
+local function RedistributeColumns(width)
+    local totalBase = 0
+    for _, w in ipairs(COLUMN_WIDTHS) do totalBase = totalBase + w end
+    local available = width - 52
+    local scale = available / totalBase
+
+    local x = 0
+    for i, baseW in ipairs(COLUMN_WIDTHS) do
+        local w = baseW * scale
+        if headerFS[i] then
+            headerFS[i]:ClearAllPoints()
+            headerFS[i]:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 16 + x, -60)
+            headerFS[i]:SetWidth(w)
+        end
+        for _, row in ipairs(rowButtons) do
+            if row.fontStrings[i] then
+                row.fontStrings[i]:ClearAllPoints()
+                row.fontStrings[i]:SetPoint("LEFT", row, "LEFT", x, 0)
+                row.fontStrings[i]:SetWidth(w)
+            end
+        end
+        x = x + w
+    end
+
+    for _, row in ipairs(rowButtons) do
+        row:SetWidth(available)
+    end
+end
+
 -- ============================================
 -- UI — MAIN FRAME
 -- ============================================
@@ -447,8 +477,8 @@ local function CreateMainFrame()
     if mainFrame then return end
 
     local f = CreateFrame("Frame", "CMNWOSINT_MainFrame", UIParent, "BackdropTemplate")
-    f:SetSize(970, 500)
-    f:SetPoint("TOPLEFT", UIParent, "CENTER", -485, 250)
+    f:SetSize(1100, 500)
+    f:SetPoint("TOPLEFT", UIParent, "CENTER", -550, 250)
     f:SetBackdrop(ELVUI_BACKDROP)
     f:SetBackdropColor(0.1, 0.1, 0.1, 1)
     f:SetBackdropBorderColor(0.1, 0.1, 0.1, 1)
@@ -501,6 +531,7 @@ local function CreateMainFrame()
         fs:SetWidth(COLUMN_WIDTHS[i])
         fs:SetJustifyH(COLUMN_ALIGNS[i])
         fs:SetText(hdr)
+        headerFS[i] = fs
         colX = colX + COLUMN_WIDTHS[i]
     end
 
@@ -573,10 +604,7 @@ local function CreateMainFrame()
 
     f:SetScript("OnSizeChanged", function(_, width, height)
         visibleRows = math.max(1, math.floor((height - 94) / ROW_HEIGHT))
-        local rowW = width - 52
-        for i = 1, #rowButtons do
-            rowButtons[i]:SetWidth(rowW)
-        end
+        RedistributeColumns(width)
         CMNWOSINT_UpdateTable()
     end)
 
@@ -584,10 +612,7 @@ local function CreateMainFrame()
         local width  = f:GetWidth()
         local height = f:GetHeight()
         visibleRows = math.max(1, math.floor((height - 94) / ROW_HEIGHT))
-        local rowW = width - 52
-        for i = 1, #rowButtons do
-            rowButtons[i]:SetWidth(rowW)
-        end
+        RedistributeColumns(width)
         CMNWOSINT_UpdateCounter()
         CMNWOSINT_UpdateTable()
     end)
