@@ -2,7 +2,7 @@ local addonName, ns = ...
 
 --[[
     CMNW-OSINT
-    Passive player intelligence collection from target and nameplates
+    Passive player intelligence collection from target, nameplates and chat
     Captures: guid, id, name, realm, level, faction, race, class, gender, guild, status
     Exports to popup as JSON via /cmnw export
     Data persisted to SavedVariables — insert-only (never updates existing records)
@@ -92,6 +92,32 @@ end
 
 local function CollectTargetData()
     return CollectUnitData("target")
+end
+
+local function CollectChatData(senderName, senderGUID)
+    local name, realm = ParseNameRealm(senderName)
+    local id          = ParseGuidID(senderGUID)
+    return {
+        guid          = senderGUID,
+        id            = id,
+        name          = name,
+        realm         = realm,
+        level         = nil,
+        faction       = nil,
+        race          = nil,
+        raceName      = nil,
+        class         = nil,
+        className     = nil,
+        classFile     = nil,
+        gender        = nil,
+        guild         = nil,
+        guildRank     = nil,
+        guildRankName = nil,
+        status        = "------",
+        createdBy     = "OSINT-CHAT-GET",
+        updatedBy     = "OSINT-CHAT-INDEX",
+        lastModified  = date("!%Y-%m-%dT%H:%M:%SZ"),
+    }
 end
 
 -- ============================================
@@ -221,6 +247,26 @@ end
 -- ============================================
 -- DATABASE
 -- ============================================
+
+local CHAT_EVENTS = {
+    "CHAT_MSG_SAY",
+    "CHAT_MSG_YELL",
+    "CHAT_MSG_PARTY",
+    "CHAT_MSG_PARTY_LEADER",
+    "CHAT_MSG_RAID",
+    "CHAT_MSG_RAID_LEADER",
+    "CHAT_MSG_GUILD",
+    "CHAT_MSG_OFFICER",
+    "CHAT_MSG_WHISPER",
+    "CHAT_MSG_INSTANCE_CHAT",
+    "CHAT_MSG_INSTANCE_CHAT_LEADER",
+}
+
+local CHAT_EVENTS_SET = {}
+for _, v in ipairs(CHAT_EVENTS) do CHAT_EVENTS_SET[v] = true end
+
+local chatThrottle  = {}
+local CHAT_THROTTLE = 60
 
 local function SaveToDB(data)
     if CMNWOSINT_DB[data.guid] then
@@ -380,6 +426,10 @@ EventFrame:RegisterEvent("ADDON_LOADED")
 EventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
 EventFrame:RegisterEvent("NAME_PLATE_UNIT_ADDED")
 
+for _, eventName in ipairs(CHAT_EVENTS) do
+    EventFrame:RegisterEvent(eventName)
+end
+
 EventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" and (...) == addonName then
         OnInitialize()
@@ -400,6 +450,22 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
             if SaveToDB(data) then
                 DebugPrintSource(data, "Nameplate")
             end
+        end
+    elseif CHAT_EVENTS_SET[event] then
+        local _, senderName, _, _, _, _, _, _, _, _, _, senderGUID = ...
+        if senderGUID then
+            pcall(function()
+                local now = time()
+                if not chatThrottle[senderGUID] or (now - chatThrottle[senderGUID]) >= CHAT_THROTTLE then
+                    local data = CollectChatData(senderName, senderGUID)
+                    if data then
+                        if SaveToDB(data) then
+                            DebugPrintSource(data, "Chat")
+                        end
+                        chatThrottle[senderGUID] = now
+                    end
+                end
+            end)
         end
     end
 end)
