@@ -263,7 +263,8 @@ local UPDATED_TAGS = {
 local COLUMN_WIDTHS = { 22, 40, 80, 72, 44, 28, 30, 28, 58, 28, 58, 52, 38, 80, 34, 58, 44, 34, 86 }
 local COLUMN_ALIGNS = { "CENTER", "CENTER", "LEFT", "LEFT", "CENTER", "CENTER", "CENTER", "CENTER", "LEFT", "CENTER", "LEFT", "LEFT", "CENTER", "LEFT", "CENTER", "LEFT", "CENTER", "CENTER", "LEFT" }
 local ROW_HEIGHT    = 18
-local VISIBLE_ROWS  = 18
+local MAX_ROWS      = 50
+local visibleRows   = 18
 
 local BLANK_TEX = "Interface\\Buttons\\WHITE8x8"
 
@@ -299,11 +300,11 @@ function CMNWOSINT_UpdateTable()
         return (a.name or "") < (b.name or "")
     end)
 
-    FauxScrollFrame_Update(scrollFrame, #data, VISIBLE_ROWS, ROW_HEIGHT)
+    FauxScrollFrame_Update(scrollFrame, #data, visibleRows, ROW_HEIGHT)
 
     local offset = FauxScrollFrame_GetOffset(scrollFrame)
 
-    for i = 1, VISIBLE_ROWS do
+    for i = 1, visibleRows do
         local row   = rowButtons[i]
         local idx   = offset + i
         local entry = data[idx]
@@ -362,6 +363,13 @@ function CMNWOSINT_UpdateTable()
             if row.bg then row.bg:Hide() end
             row.selected:Hide()
         end
+    end
+
+    for i = visibleRows + 1, #rowButtons do
+        local row = rowButtons[i]
+        row:Hide()
+        if row.bg then row.bg:Hide() end
+        row.selected:Hide()
     end
 end
 
@@ -446,17 +454,11 @@ local function CreateMainFrame()
     f:SetBackdropBorderColor(0.1, 0.1, 0.1, 1)
     f:SetMovable(true)
     f:SetResizable(true)
-    f:SetMinResize(640, 200)
-    f:SetMaxResize(1600, 900)
+    f:SetResizeBounds(640, 200, 1600, 900)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", f.StartMoving)
     f:SetScript("OnDragStop", f.StopMovingOrSizing)
-    f:SetScript("OnSizeChanged", function()
-        f:SetBackdrop(ELVUI_BACKDROP)
-        f:SetBackdropColor(0.1, 0.1, 0.1, 1)
-        f:SetBackdropBorderColor(0.1, 0.1, 0.1, 1)
-    end)
     f:SetFrameStrata("DIALOG")
     f:Hide()
 
@@ -520,7 +522,7 @@ local function CreateMainFrame()
         FauxScrollFrame_OnVerticalScroll(self, offset, ROW_HEIGHT, CMNWOSINT_UpdateTable)
     end)
 
-    for i = 1, VISIBLE_ROWS do
+    for i = 1, MAX_ROWS do
         local row = CreateFrame("Button", nil, f)
         row:SetSize(totalW, ROW_HEIGHT)
         row:SetPoint("TOPLEFT", scrollFrame, "TOPLEFT", 0, -((i - 1) * ROW_HEIGHT))
@@ -569,7 +571,23 @@ local function CreateMainFrame()
         f:StopMovingOrSizing()
     end)
 
+    f:SetScript("OnSizeChanged", function(_, width, height)
+        visibleRows = math.max(1, math.floor((height - 94) / ROW_HEIGHT))
+        local rowW = width - 52
+        for i = 1, #rowButtons do
+            rowButtons[i]:SetWidth(rowW)
+        end
+        CMNWOSINT_UpdateTable()
+    end)
+
     f:SetScript("OnShow", function()
+        local width  = f:GetWidth()
+        local height = f:GetHeight()
+        visibleRows = math.max(1, math.floor((height - 94) / ROW_HEIGHT))
+        local rowW = width - 52
+        for i = 1, #rowButtons do
+            rowButtons[i]:SetWidth(rowW)
+        end
         CMNWOSINT_UpdateCounter()
         CMNWOSINT_UpdateTable()
     end)
