@@ -2,9 +2,10 @@ local addonName, ns = ...
 
 --[[
     CMNW-OSINT
-    Captures player target data: guid, id, name, realm, level, faction, race, class, gender, guild, status
+    Passive player intelligence collection from target, combat log, and nameplates
+    Captures: guid, id, name, realm, level, faction, race, class, gender, guild, status
     Exports to popup as JSON via /cmnw export
-    Data persisted to SavedVariables for external reading
+    Data persisted to SavedVariables — insert-only (never updates existing records)
 ]]
 
 -- ============================================
