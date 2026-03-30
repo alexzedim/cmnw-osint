@@ -253,14 +253,33 @@ local SOURCE_TAGS = {
     ["OSINT-NAMEPLATE-GET"] = "NPL",
 }
 
-local COLUMN_WIDTHS = { 28, 100, 90, 34, 72, 72, 42, 100, 72 }
-local COLUMN_ALIGNS = { "CENTER", "LEFT", "LEFT", "CENTER", "LEFT", "LEFT", "CENTER", "LEFT", "CENTER" }
+local UPDATED_TAGS = {
+    ["OSINT-CHARACTER-INDEX"] = "TGT",
+    ["OSINT-CHAT-INDEX"]      = "CHT",
+    ["OSINT-CLEU-INDEX"]      = "CLEU",
+    ["OSINT-NAMEPLATE-INDEX"] = "NPL",
+}
+
+local COLUMN_WIDTHS = { 22, 40, 80, 72, 44, 28, 30, 28, 58, 28, 58, 52, 38, 80, 34, 58, 44, 34, 86 }
+local COLUMN_ALIGNS = { "CENTER", "CENTER", "LEFT", "LEFT", "CENTER", "CENTER", "CENTER", "CENTER", "LEFT", "CENTER", "LEFT", "LEFT", "CENTER", "LEFT", "CENTER", "LEFT", "CENTER", "CENTER", "LEFT" }
 local ROW_HEIGHT    = 18
 local VISIBLE_ROWS  = 18
 
-local counterText = nil
-local scrollFrame = nil
-local rowButtons  = {}
+local BLANK_TEX = "Interface\\Buttons\\WHITE8x8"
+
+local ELVUI_BACKDROP = {
+    bgFile   = BLANK_TEX,
+    edgeFile = BLANK_TEX,
+    edgeSize = 1,
+}
+
+local DETAIL_FIELDS = {}
+
+local counterText       = nil
+local scrollFrame       = nil
+local rowButtons        = {}
+local selectedEntry     = nil
+local ExportJSON
 
 function CMNWOSINT_UpdateCounter()
     if not counterText then return end
@@ -294,14 +313,24 @@ function CMNWOSINT_UpdateTable()
 
             local values = {
                 tostring(idx),
+                entry.id            and tostring(entry.id) or "-",
                 entry.name          or "-",
                 entry.realm         or "-",
+                entry.realmId       and tostring(entry.realmId) or "-",
                 entry.level         and tostring(entry.level) or "-",
-                entry.className     or "-",
-                entry.raceName      or "-",
                 entry.faction       and entry.faction:sub(1, 1) or "-",
+                entry.race          and tostring(entry.race) or "-",
+                entry.raceName      or "-",
+                entry.class         and tostring(entry.class) or "-",
+                entry.className     or "-",
+                entry.classFile     or "-",
+                entry.gender        or "-",
                 entry.guild         or "-",
-                SOURCE_TAGS[entry.createdBy] or entry.createdBy or "-",
+                entry.guildRank     and tostring(entry.guildRank) or "-",
+                entry.guildRankName or "-",
+                entry.status        or "-",
+                UPDATED_TAGS[entry.updatedBy] or entry.updatedBy or "-",
+                entry.lastModified  and entry.lastModified:sub(1, 10) or "-",
             }
 
             for j, fs in ipairs(row.fontStrings) do
@@ -312,14 +341,26 @@ function CMNWOSINT_UpdateTable()
             if row.bg then
                 row.bg:Show()
                 if idx % 2 == 0 then
-                    row.bg:SetColorTexture(1, 1, 1, 0.04)
+                    row.bg:SetColorTexture(1, 1, 1, 0.03)
                 else
-                    row.bg:SetColorTexture(1, 1, 1, 0.02)
+                    row.bg:SetColorTexture(1, 1, 1, 0.01)
                 end
             end
+
+            if selectedEntry and entry.guid == selectedEntry.guid then
+                row.selected:Show()
+            else
+                row.selected:Hide()
+            end
+
+            row:SetScript("OnClick", function()
+                selectedEntry = entry
+                CMNWOSINT_UpdateTable()
+            end)
         else
             row:Hide()
             if row.bg then row.bg:Hide() end
+            row.selected:Hide()
         end
     end
 end
@@ -337,6 +378,60 @@ local function SaveToDB(data)
 end
 
 -- ============================================
+-- UI — HELPERS
+-- ============================================
+
+local function CreateElvUIButton(parent, text, width, height)
+    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    btn:SetSize(width, height)
+    btn:SetBackdrop(ELVUI_BACKDROP)
+    btn:SetBackdropColor(0.1, 0.1, 0.1, 1)
+    btn:SetBackdropBorderColor(0.1, 0.1, 0.1, 1)
+    btn:SetNormalFontObject(GameFontNormal)
+    btn:SetDisabledFontObject(GameFontDisable)
+    btn:SetText(text)
+
+    local highlight = btn:CreateTexture(nil, "HIGHLIGHT")
+    highlight:SetAllPoints(btn)
+    highlight:SetColorTexture(1, 1, 1, 0.3)
+    highlight:SetBlendMode("ADD")
+
+    local pushed = btn:CreateTexture(nil, "ARTWORK")
+    pushed:SetAllPoints(btn)
+    pushed:SetColorTexture(0.9, 0.8, 0.1, 0.3)
+    pushed:SetBlendMode("ADD")
+    btn:SetPushedTexture(pushed)
+
+    return btn
+end
+
+local function CreateElvUICloseButton(parent)
+    local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+    btn:SetSize(16, 16)
+    btn:SetPoint("TOPRIGHT", parent, "TOPRIGHT", -6, -6)
+    btn:SetBackdrop(ELVUI_BACKDROP)
+    btn:SetBackdropColor(0.1, 0.1, 0.1, 1)
+    btn:SetBackdropBorderColor(0.1, 0.1, 0.1, 1)
+
+    local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+    text:SetPoint("CENTER")
+    text:SetText("X")
+    btn.text = text
+
+    btn:SetScript("OnEnter", function()
+        text:SetTextColor(0.09, 0.51, 0.82)
+    end)
+    btn:SetScript("OnLeave", function()
+        text:SetTextColor(1, 1, 1)
+    end)
+    btn:SetScript("OnClick", function()
+        parent:Hide()
+    end)
+
+    return btn
+end
+
+-- ============================================
 -- UI — MAIN FRAME
 -- ============================================
 
@@ -344,16 +439,15 @@ local function CreateMainFrame()
     if mainFrame then return end
 
     local f = CreateFrame("Frame", "CMNWOSINT_MainFrame", UIParent, "BackdropTemplate")
-    f:SetSize(740, 460)
+    f:SetSize(970, 500)
     f:SetPoint("CENTER")
-    f:SetBackdrop({
-        bgFile   = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile     = true, tileSize = 32, edgeSize = 32,
-        insets   = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    f:SetBackdropColor(0, 0, 0, 1)
+    f:SetBackdrop(ELVUI_BACKDROP)
+    f:SetBackdropColor(0.1, 0.1, 0.1, 1)
+    f:SetBackdropBorderColor(0.1, 0.1, 0.1, 1)
     f:SetMovable(true)
+    f:SetResizable(true)
+    f:SetMinResize(640, 200)
+    f:SetMaxResize(1600, 900)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
     f:SetScript("OnDragStart", f.StartMoving)
@@ -367,33 +461,29 @@ local function CreateMainFrame()
     title:SetPoint("TOPLEFT", f, "TOPLEFT", 16, -14)
     title:SetText("CMNW-OSINT")
 
-    local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -2, -2)
+    CreateElvUICloseButton(f)
 
     counterText = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
     counterText:SetPoint("TOPLEFT", title, "BOTTOMLEFT", 0, -8)
 
-    local exportBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    exportBtn:SetSize(90, 22)
-    exportBtn:SetPoint("TOPRIGHT", closeBtn, "BOTTOMRIGHT", -4, -4)
-    exportBtn:SetText("Export JSON")
+    local exportBtn = CreateElvUIButton(f, "Export JSON", 90, 22)
+    exportBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -28, -30)
     exportBtn:SetScript("OnClick", function()
         ExportJSON()
     end)
 
-    local clearBtn = CreateFrame("Button", nil, f, "UIPanelButtonTemplate")
-    clearBtn:SetSize(70, 22)
+    local clearBtn = CreateElvUIButton(f, "Clear DB", 70, 22)
     clearBtn:SetPoint("RIGHT", exportBtn, "LEFT", -4, 0)
-    clearBtn:SetText("Clear DB")
     clearBtn:SetScript("OnClick", function()
         CMNWOSINT_DB = {}
+        selectedEntry = nil
         CMNWOSINT_UpdateCounter()
         CMNWOSINT_UpdateTable()
         print("|cff00ff00[CMNW-OSINT]|r Database cleared.")
     end)
 
     local headerY = -60
-    local headers = { "#", "Name", "Realm", "Lvl", "Class", "Race", "Fac", "Guild", "Src" }
+    local headers = { "#", "ID", "Name", "Realm", "RealmID", "Lvl", "Fac", "Race", "RaceNm", "Class", "ClassNm", "ClassFile", "Gender", "Guild", "GRank", "GTitle", "Status", "UpdBy", "Modified" }
     local totalW  = 0
     for _, w in ipairs(COLUMN_WIDTHS) do totalW = totalW + w end
 
@@ -407,11 +497,11 @@ local function CreateMainFrame()
         colX = colX + COLUMN_WIDTHS[i]
     end
 
-    local divider = f:CreateTexture(nil, "ARTWORK")
-    divider:SetPoint("TOPLEFT", f, "TOPLEFT", 16, headerY - 14)
-    divider:SetPoint("TOPRIGHT", f, "TOPRIGHT", -36, headerY - 14)
-    divider:SetHeight(1)
-    divider:SetColorTexture(0.5, 0.5, 0.5, 0.5)
+    local headerDiv = f:CreateTexture(nil, "ARTWORK")
+    headerDiv:SetPoint("TOPLEFT", f, "TOPLEFT", 16, headerY - 14)
+    headerDiv:SetPoint("TOPRIGHT", f, "TOPRIGHT", -16, headerY - 14)
+    headerDiv:SetHeight(1)
+    headerDiv:SetColorTexture(0.3, 0.3, 0.3, 0.5)
 
     local tableTop    = headerY - 18
     local tableBottom = -16
@@ -435,9 +525,15 @@ local function CreateMainFrame()
         bg:Hide()
         row.bg = bg
 
+        local selected = row:CreateTexture(nil, "ARTWORK")
+        selected:SetAllPoints(row)
+        selected:SetColorTexture(0.09, 0.51, 0.82, 0.15)
+        selected:Hide()
+        row.selected = selected
+
         local highlight = row:CreateTexture(nil, "HIGHLIGHT")
         highlight:SetAllPoints(row)
-        highlight:SetColorTexture(1, 1, 1, 0.08)
+        highlight:SetColorTexture(1, 1, 1, 0.06)
 
         row.fontStrings = {}
         local rx = 0
@@ -454,6 +550,19 @@ local function CreateMainFrame()
         row:Hide()
         rowButtons[i] = row
     end
+
+    local resizeGrip = CreateFrame("Button", nil, f)
+    resizeGrip:SetSize(16, 16)
+    resizeGrip:SetPoint("BOTTOMRIGHT", f, "BOTTOMRIGHT", -4, 4)
+    resizeGrip:SetNormalTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Up")
+    resizeGrip:SetHighlightTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Highlight")
+    resizeGrip:SetPushedTexture("Interface\\ChatFrame\\UI-ChatIM-SizeGrabber-Down")
+    resizeGrip:SetScript("OnMouseDown", function()
+        f:StartSizing("BOTTOMRIGHT")
+    end)
+    resizeGrip:SetScript("OnMouseUp", function()
+        f:StopMovingOrSizing()
+    end)
 
     f:SetScript("OnShow", function()
         CMNWOSINT_UpdateCounter()
@@ -475,13 +584,9 @@ local function CreateExportFrame()
     local f = CreateFrame("Frame", "CMNWOSINT_ExportFrame", UIParent, "BackdropTemplate")
     f:SetSize(600, 400)
     f:SetPoint("CENTER")
-    f:SetBackdrop({
-        bgFile   = "Interface\\DialogFrame\\UI-DialogBox-Background",
-        edgeFile = "Interface\\DialogFrame\\UI-DialogBox-Border",
-        tile     = true, tileSize = 32, edgeSize = 32,
-        insets   = { left = 8, right = 8, top = 8, bottom = 8 }
-    })
-    f:SetBackdropColor(0, 0, 0, 1)
+    f:SetBackdrop(ELVUI_BACKDROP)
+    f:SetBackdropColor(0.1, 0.1, 0.1, 1)
+    f:SetBackdropBorderColor(0.1, 0.1, 0.1, 1)
     f:SetMovable(true)
     f:EnableMouse(true)
     f:RegisterForDrag("LeftButton")
@@ -496,8 +601,7 @@ local function CreateExportFrame()
     title:SetPoint("TOP", f, "TOP", 0, -12)
     title:SetText("CMNW-OSINT Export — Ctrl+A then Ctrl+C to copy")
 
-    local closeBtn = CreateFrame("Button", nil, f, "UIPanelCloseButton")
-    closeBtn:SetPoint("TOPRIGHT", f, "TOPRIGHT", -2, -2)
+    CreateElvUICloseButton(f)
 
     local scroll = CreateFrame("ScrollFrame", nil, f, "UIPanelScrollFrameTemplate")
     scroll:SetPoint("TOPLEFT", 16, -32)
@@ -509,6 +613,11 @@ local function CreateExportFrame()
     editBox:SetFontObject(GameFontNormal)
     editBox:SetWidth(560)
     editBox:SetScript("OnEscapePressed", function() f:Hide() end)
+
+    local editBg = editBox:CreateTexture(nil, "BACKGROUND")
+    editBg:SetAllPoints(editBox)
+    editBg:SetColorTexture(0.05, 0.05, 0.05, 1)
+
     scroll:SetScrollChild(editBox)
 
     f.editBox = editBox
@@ -525,7 +634,7 @@ local function EscapeJSON(str)
     return str
 end
 
-local function ExportJSON()
+function ExportJSON()
     local entries = {}
     for guid, data in pairs(CMNWOSINT_DB) do
         local function jsonStr(v)
