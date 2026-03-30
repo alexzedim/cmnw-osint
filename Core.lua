@@ -126,9 +126,9 @@ end
 
 local lastCaptured = nil
 
-local function DebugPrint(data)
+local function DebugPrint(data, source)
     lastCaptured = data
-    print("|cff00ff00[CMNW-OSINT]|r Target captured:")
+    print("|cff00ff00[CMNW-OSINT]|r " .. (source or "Target") .. " captured:")
     print("  |cffffd700  GUID:|r          " .. tostring(data.guid))
     print("  |cffffd700  ID:|r            " .. tostring(data.id))
     print("  |cffffd700  Name:|r          " .. tostring(data.name))
@@ -143,12 +143,6 @@ local function DebugPrint(data)
     print("  |cffffd700  GuildRankName:|r " .. tostring(data.guildRankName))
     print("  |cffffd700  Status:|r        " .. tostring(data.status))
     print("  |cffffd700  LastModified:|r  " .. tostring(data.lastModified))
-end
-
-local function DebugPrintSource(data, source)
-    print("|cff00ff00[CMNW-OSINT]|r " .. source .. " captured: "
-        .. tostring(data.name) .. "-" .. tostring(data.realm)
-        .. " |cff888888(" .. tostring(data.guid) .. ")|r")
 end
 
 local function SayLastCaptured()
@@ -448,7 +442,7 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
             data.createdBy = "OSINT-NAMEPLATE-GET"
             data.updatedBy = "OSINT-NAMEPLATE-INDEX"
             if SaveToDB(data) then
-                DebugPrintSource(data, "Nameplate")
+                DebugPrint(data, "Nameplate")
             end
         end
     elseif CHAT_EVENTS_SET[event] then
@@ -460,7 +454,7 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
                     local data = CollectChatData(senderName, senderGUID)
                     if data then
                         if SaveToDB(data) then
-                            DebugPrintSource(data, "Chat")
+                            DebugPrint(data, "Chat")
                         end
                         chatThrottle[senderGUID] = now
                     end
