@@ -612,23 +612,16 @@ SLASH_CMNWOSINT1 = "/cmnw"
 SLASH_CMNWOSINT2 = "/osint"
 SlashCmdList["CMNWOSINT"] = function(msg)
     msg = msg and msg:lower() or ""
-    if msg == "export" then
-        ExportJSON()
-    elseif msg == "say" then
-        SayLastCaptured()
-    elseif msg == "clear" then
-        CMNWOSINT_DB = {}
-        print("|cff00ff00[CMNW-OSINT]|r Database cleared.")
-    elseif msg == "count" then
-        local c = 0
-        for _ in pairs(CMNWOSINT_DB) do c = c + 1 end
-        print("|cff00ff00[CMNW-OSINT]|r " .. c .. " players in database.")
+    if msg == "on" then
+        mainFrame:Show()
+    elseif msg == "off" then
+        mainFrame:Hide()
     else
-        print("|cff00ff00[CMNW-OSINT]|r Commands:")
-        print("  |cffffd700/cmnw export|r -- Copy JSON to clipboard")
-        print("  |cffffd700/cmnw say|r   -- Say last capture in /say")
-        print("  |cffffd700/cmnw clear|r  -- Clear database")
-        print("  |cffffd700/cmnw count|r  -- Show entry count")
+        if mainFrame:IsShown() then
+            mainFrame:Hide()
+        else
+            mainFrame:Show()
+        end
     end
 end
 
