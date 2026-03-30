@@ -93,6 +93,21 @@ local function CollectTargetData()
     return CollectUnitData("target")
 end
 
+local function CollectCLEUData(guid, fullName)
+    local id = ParseGuidID(guid)
+    local name, realm = ParseNameRealm(fullName)
+    return {
+        guid         = guid,
+        id           = id,
+        name         = name,
+        realm        = realm,
+        status       = "------",
+        createdBy    = "OSINT-CLEU-GET",
+        updatedBy    = "OSINT-CLEU-INDEX",
+        lastModified = date("!%Y-%m-%dT%H:%M:%SZ"),
+    }
+end
+
 -- ============================================
 -- DEBUG PRINT
 -- ============================================
@@ -214,6 +229,9 @@ end
 -- ============================================
 -- DATABASE
 -- ============================================
+
+local CLEU_THROTTLE_SECS = 30
+local cleuThrottle = {}
 
 local function SaveToDB(data)
     -- Key by GUID -- overwrites if same player seen again
@@ -368,6 +386,7 @@ local EventFrame = CreateFrame("Frame")
 
 EventFrame:RegisterEvent("ADDON_LOADED")
 EventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
+EventFrame:RegisterEvent("COMBAT_LOG_EVENT_UNFILTERED")
 
 EventFrame:SetScript("OnEvent", function(self, event, ...)
     if event == "ADDON_LOADED" and (...) == addonName then
@@ -378,6 +397,29 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         if data then
             DebugPrint(data)
             SaveToDB(data)
+        end
+    elseif event == "COMBAT_LOG_EVENT_UNFILTERED" then
+        local _, subEvent, _, sourceGUID, sourceName, _, _, destGUID, destName = CombatLogGetCurrentEventInfo()
+        local now = time()
+
+        if sourceGUID and sourceGUID:find("^Player-") then
+            if not cleuThrottle[sourceGUID] or (now - cleuThrottle[sourceGUID]) >= CLEU_THROTTLE_SECS then
+                cleuThrottle[sourceGUID] = now
+                local data = CollectCLEUData(sourceGUID, sourceName)
+                if data then
+                    SaveToDB(data)
+                end
+            end
+        end
+
+        if destGUID and destGUID:find("^Player-") then
+            if not cleuThrottle[destGUID] or (now - cleuThrottle[destGUID]) >= CLEU_THROTTLE_SECS then
+                cleuThrottle[destGUID] = now
+                local data = CollectCLEUData(destGUID, destName)
+                if data then
+                    SaveToDB(data)
+                end
+            end
         end
     end
 end)
