@@ -78,8 +78,10 @@ local function CollectUnitData(unit)
     realm = GetRealmName()
   end
 
-  name  = name and name:lower()
-  realm = NormalizeRealm(realm)
+  -- Sanitize potentially tainted values from UnitName during combat
+  -- tostring() avoids indexing; string.lower avoids method call on tainted value
+  name  = name and string.lower(tostring(name))
+  realm = NormalizeRealm(tostring(realm))
 
   local _, _, raceIndex                          = UnitRace(unit)
   local _, _, classIndex                         = UnitClass(unit)
@@ -1042,9 +1044,13 @@ end
 
 local EventFrame = CreateFrame("Frame")
 
+local inCombat = false
+
 EventFrame:RegisterEvent("ADDON_LOADED")
 EventFrame:RegisterEvent("PLAYER_TARGET_CHANGED")
 EventFrame:RegisterEvent("NAME_PLATE_UNIT_ADDED")
+EventFrame:RegisterEvent("PLAYER_REGEN_DISABLED")
+EventFrame:RegisterEvent("PLAYER_REGEN_ENABLED")
 
 for _, eventName in ipairs(CHAT_EVENTS) do
   EventFrame:RegisterEvent(eventName)
@@ -1056,24 +1062,33 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
   if event == "ADDON_LOADED" and (...) == addonName then
     OnInitialize()
     print("|cff00ff00[CMNW-OSINT]|r Loaded. Target a player to collect data.")
+  elseif event == "PLAYER_REGEN_DISABLED" then
+    inCombat = true
+  elseif event == "PLAYER_REGEN_ENABLED" then
+    inCombat = false
   elseif event == "PLAYER_TARGET_CHANGED" then
-    local data = CollectTargetData()
-    if data then
-      if SaveToDB(data) then
-        DebugPrint(data)
+    if not inCombat then
+      local data = CollectTargetData()
+      if data then
+        if SaveToDB(data) then
+          DebugPrint(data)
+        end
       end
     end
   elseif event == "NAME_PLATE_UNIT_ADDED" then
-    local plateUnit = ...
-    local data = CollectUnitData(plateUnit)
-    if data then
-      data.createdBy = "OSINT-NAMEPLATE-GET"
-      data.updatedBy = "OSINT-NAMEPLATE-INDEX"
-      if SaveToDB(data) then
-        DebugPrint(data, "Nameplate")
+    if not inCombat then
+      local plateUnit = ...
+      local data = CollectUnitData(plateUnit)
+      if data then
+        data.createdBy = "OSINT-NAMEPLATE-GET"
+        data.updatedBy = "OSINT-NAMEPLATE-INDEX"
+        if SaveToDB(data) then
+          DebugPrint(data, "Nameplate")
+        end
       end
     end
   elseif CHAT_EVENTS_SET[event] then
+    if not inCombat then
     local _, senderName, _, _, _, _, _, _, _, _, _, senderGUID = ...
     if senderGUID then
       pcall(function()
@@ -1085,7 +1100,9 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         end
       end)
     end
+    end
   elseif event == "WHO_LIST_UPDATE" then
+    if not inCombat then
     pcall(function()
       local numResults = C_FriendList.GetNumWhoResults()
       for i = 1, numResults do
@@ -1109,6 +1126,7 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
         end
       end
     end)
+    end
   end
 end)
 
