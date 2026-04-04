@@ -66,6 +66,7 @@ local function CollectUnitData(unit)
   if not UnitExists(unit) or not UnitIsPlayer(unit) then
     return nil
   end
+  if IsIdentitySecret(unit) then return nil end
 
   local guid        = UnitGUID(unit)
   if not guid then return nil end
@@ -1068,8 +1069,8 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
     inCombat = false
   elseif event == "PLAYER_TARGET_CHANGED" then
     if not inCombat then
-      local data = CollectTargetData()
-      if data then
+      local ok, data = pcall(CollectTargetData)
+      if ok and data then
         if SaveToDB(data) then
           DebugPrint(data)
         end
@@ -1078,8 +1079,8 @@ EventFrame:SetScript("OnEvent", function(self, event, ...)
   elseif event == "NAME_PLATE_UNIT_ADDED" then
     if not inCombat then
       local plateUnit = ...
-      local data = CollectUnitData(plateUnit)
-      if data then
+      local ok, data = pcall(CollectUnitData, plateUnit)
+      if ok and data then
         data.createdBy = "OSINT-NAMEPLATE-GET"
         data.updatedBy = "OSINT-NAMEPLATE-INDEX"
         if SaveToDB(data) then
