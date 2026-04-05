@@ -12,6 +12,11 @@ local addonName, ns = ...
 -- INITIALIZATION
 -- ============================================
 
+local debugConfig = {
+    console = { Target = true, Nameplate = true, Chat = true, Who = true },
+    emote   = { Target = false, Nameplate = false, Chat = false, Who = false },
+}
+
 -- ============================================
 -- HELPERS
 -- ============================================
@@ -264,12 +269,41 @@ end
 
 local mainFrame = nil
 
+local function PrintDebugConfig()
+  local PFX = "|cff00ff00[CMNW-OSINT]|r "
+  local ON  = "|cff00cc00ON|r"
+  local OFF = "|cffff4444OFF|r"
+  local sources = { "Target", "Nameplate", "Chat", "Who" }
+  local consoleParts = {}
+  local emoteParts = {}
+  for _, s in ipairs(sources) do
+    consoleParts[#consoleParts + 1] = s .. ":" .. (debugConfig.console[s] and ON or OFF)
+    emoteParts[#emoteParts + 1] = s .. ":" .. (debugConfig.emote[s] and ON or OFF)
+  end
+  print(PFX .. "Console: " .. table.concat(consoleParts, " "))
+  print(PFX .. "Emote: " .. table.concat(emoteParts, " "))
+end
+
 local function DebugPrint(data, source)
-  print("|cff00ff00[CMNW-OSINT]|r "
-    .. tostring(data.name) .. "@" .. tostring(data.realm)
-    .. " | " .. tostring(data.level)
-    .. " | " .. tostring(data.id)
-    .. " | " .. tostring(source or "Target"))
+  source = source or "Target"
+  if debugConfig.console[source] then
+    print("|cff00ff00[CMNW-OSINT]|r "
+      .. tostring(data.name) .. "@" .. tostring(data.realm)
+      .. " | " .. tostring(data.level)
+      .. " | " .. tostring(data.id)
+      .. " | " .. tostring(source))
+  end
+  if debugConfig.emote[source] then
+    local msg = "CMNW-OSINT || "
+      .. tostring(data.name) .. "@" .. tostring(data.realm)
+      .. " || " .. tostring(data.level)
+      .. " || " .. tostring(data.id)
+      .. " || " .. tostring(source)
+    if #msg > 255 then
+      msg = msg:sub(1, 252) .. "..."
+    end
+    pcall(SendChatMessage, msg, "EMOTE")
+  end
 end
 
 --[[ Full unit debug dump (disabled)
@@ -685,6 +719,39 @@ local function CreateElvUICloseButton(parent)
   return btn
 end
 
+local function CreateDebugToggle(parent, label, width, height, initialState, callback)
+  local btn = CreateFrame("Button", nil, parent, "BackdropTemplate")
+  btn:SetSize(width, height)
+  btn:SetBackdrop(ELVUI_BACKDROP)
+  btn:SetBackdropBorderColor(0.1, 0.1, 0.1, 1)
+  btn:SetNormalFontObject(GameFontNormal)
+
+  local text = btn:CreateFontString(nil, "OVERLAY", "GameFontNormal")
+  text:SetPoint("CENTER")
+  text:SetText(label)
+  btn.text = text
+
+  local state = initialState
+  local function UpdateVisual()
+    if state then
+      btn:SetBackdropColor(0.09, 0.51, 0.82, 0.6)
+      text:SetTextColor(1, 1, 1)
+    else
+      btn:SetBackdropColor(0.1, 0.1, 0.1, 1)
+      text:SetTextColor(0.5, 0.5, 0.5)
+    end
+  end
+
+  btn:SetScript("OnClick", function()
+    state = not state
+    UpdateVisual()
+    callback(state)
+  end)
+
+  UpdateVisual()
+  return btn
+end
+
 local function RedistributeColumns(width)
   local totalBase = 0
   for _, w in ipairs(COLUMN_WIDTHS) do totalBase = totalBase + w end
@@ -696,7 +763,7 @@ local function RedistributeColumns(width)
     local w = baseW * scale
     if headerFS[i] then
       headerFS[i]:ClearAllPoints()
-      headerFS[i]:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 16 + x, -60)
+      headerFS[i]:SetPoint("TOPLEFT", mainFrame, "TOPLEFT", 16 + x, -76)
       headerFS[i]:SetWidth(w)
     end
     for _, row in ipairs(rowButtons) do
@@ -768,7 +835,44 @@ local function CreateMainFrame()
     print("|cff00ff00[CMNW-OSINT]|r Database cleared.")
   end)
 
-  local headerY = -60
+  local toggleY = -50
+  local toggleX = 16
+
+  local consoleLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  consoleLabel:SetPoint("TOPLEFT", f, "TOPLEFT", toggleX, toggleY - 2)
+  consoleLabel:SetText("Console:")
+  toggleX = toggleX + 52
+
+  local consoleSources = { "Tgt", "NP", "Chat", "WHO" }
+  local consoleKeys    = { "Target", "Nameplate", "Chat", "Who" }
+  for i = 1, 4 do
+    local key = consoleKeys[i]
+    local btn = CreateDebugToggle(f, consoleSources[i], 34, 18, true, function(state)
+      debugConfig.console[key] = state
+      print("|cff00ff00[CMNW-OSINT]|r Console " .. key .. ": " .. (state and "|cff00cc00ON|r" or "|cffff4444OFF|r"))
+    end)
+    btn:SetPoint("TOPLEFT", f, "TOPLEFT", toggleX, toggleY)
+    toggleX = toggleX + 38
+  end
+
+  toggleX = toggleX + 16
+
+  local emoteLabel = f:CreateFontString(nil, "OVERLAY", "GameFontHighlight")
+  emoteLabel:SetPoint("TOPLEFT", f, "TOPLEFT", toggleX, toggleY - 2)
+  emoteLabel:SetText("Emote:")
+  toggleX = toggleX + 32
+
+  for i = 1, 4 do
+    local key = consoleKeys[i]
+    local btn = CreateDebugToggle(f, consoleSources[i], 34, 18, false, function(state)
+      debugConfig.emote[key] = state
+      print("|cff00ff00[CMNW-OSINT]|r Emote " .. key .. ": " .. (state and "|cff00cc00ON|r" or "|cffff4444OFF|r"))
+    end)
+    btn:SetPoint("TOPLEFT", f, "TOPLEFT", toggleX, toggleY)
+    toggleX = toggleX + 38
+  end
+
+  local headerY = -76
   headers       = { "#", "ID", "Name", "Realm", "RealmId", "Level", "Faction", "Race", "RaceName", "Class", "ClassName",
     "Gender", "Guild", "GuildRank", "GuildRankName", "UpdatedBy", "LastModified" }
   local totalW  = 0
@@ -876,7 +980,7 @@ local function CreateMainFrame()
   end)
 
   f:SetScript("OnSizeChanged", function(_, width, height)
-    visibleRows = math.max(1, math.floor((height - 94) / ROW_HEIGHT))
+    visibleRows = math.max(1, math.floor((height - 110) / ROW_HEIGHT))
     RedistributeColumns(width)
     CMNWOSINT_UpdateTable()
   end)
@@ -884,7 +988,7 @@ local function CreateMainFrame()
   f:SetScript("OnShow", function()
     local width  = f:GetWidth()
     local height = f:GetHeight()
-    visibleRows  = math.max(1, math.floor((height - 94) / ROW_HEIGHT))
+    visibleRows  = math.max(1, math.floor((height - 110) / ROW_HEIGHT))
     RedistributeColumns(width)
     CMNWOSINT_UpdateCounter()
     CMNWOSINT_UpdateTable()
@@ -1037,6 +1141,7 @@ local function OnInitialize()
   end
   C_FriendList.SetWhoToUi(true)
   CreateMainFrame()
+  PrintDebugConfig()
 end
 
 -- ============================================
