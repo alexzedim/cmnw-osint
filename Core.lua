@@ -51,9 +51,9 @@ local function ParseNameRealm(fullName)
   return name, realm
 end
 
-local function IsIdentitySecret()
+local function IsIdentitySecret(unit)
   if not C_Secrets or not C_Secrets.ShouldUnitIdentityBeSecret then return false end
-  local ok, val = pcall(C_Secrets.ShouldUnitIdentityBeSecret)
+  local ok, val = pcall(C_Secrets.ShouldUnitIdentityBeSecret, unit)
   if not ok then return true end
   return val
 end
